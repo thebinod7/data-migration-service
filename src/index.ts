@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { env } from "./config/env";
+import { listTribes, testPgConnection } from "./extractors/postgres";
 
 dotenv.config();
 
@@ -9,9 +10,11 @@ const PORT = process.env.PORT;
 
 app.use(express.json());
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
+  const rows = await listTribes();
   res.json({
     message: "Hello from Express + TypeScript. This is " + env.APP_NAME,
+    rows,
   });
 });
 

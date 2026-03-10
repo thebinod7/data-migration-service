@@ -1,0 +1,9 @@
+/var/lib/postgresql/data/postgresql.conf
+    listen_addresses = '*'
+
+
+/var/lib/postgresql/data/pg_hba.conf
+    host all all 0.0.0.0/0 md5
+
+
+ssh -L 5456:localhost:5456 binod-rs@SERVER_IP => Connect through localhost to tunneling
