@@ -1,3 +1,9 @@
+function parseTablesFilter(): string[] | undefined {
+  const raw = process.env.TABLES_FILTER;
+  if (!raw?.trim()) return undefined;
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 export const config = {
   mysql: {
     host: process.env.MYSQL_HOST!,
@@ -24,8 +30,13 @@ export const config = {
     retryDelayMs: 1000,
   },
 
+  /** When true, only extract and transform; do not write to Convex. */
+  dryRun: process.env.DRY_RUN === "true" || process.env.DRY_RUN === "1",
+  /** Optional list of convexTable names to migrate (e.g. TABLES_FILTER=tribes,users). */
+  tablesFilter: parseTablesFilter(),
+
   // Define which tables migrate from which source
-  // and how they map to Convex tables
+  // and how they map to Convex tables (sourceTable = real DB table name)
   tables: [
     {
       source: "mysql" as const,
@@ -36,10 +47,10 @@ export const config = {
     },
     {
       source: "postgres" as const,
-      sourceTable: "tribes",
+      sourceTable: "tbl_tribes",
       convexTable: "tribes",
       primaryKey: "id",
-      transform: "transformOrder",
+      transform: "transformTribe",
     },
     {
       source: "mysql" as const,
