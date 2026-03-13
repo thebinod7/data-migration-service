@@ -24,7 +24,7 @@ export const config = {
     adminKey: process.env.CONVEX_ADMIN_KEY!,
   },
   migration: {
-    batchSize: 100,
+    batchSize: 2,
     concurrency: 3,
     retryAttempts: 3,
     retryDelayMs: 1000,
