@@ -48,38 +48,29 @@ export const testPgConnection = async () => {
 export async function* extractPostgresBatched(
   table: string,
   primaryKey: string,
-  batchSize = config.migration.batchSize,
-  resumeAfterId: number | string | null = null,
+  batchSize: number,
+  lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getPgPool();
-  let lastId: number | string | null = resumeAfterId;
-  let hasMore = true;
 
-  logger.info("Starting Postgres extraction", { table, primaryKey, resumeAfterId });
-
-  while (hasMore) {
-    const whereClause = lastId !== null ? `WHERE ${primaryKey} > $1` : "";
-    const query = `
+  while (true) {
+    const { rows } = await pool.query(
+      `
       SELECT * FROM "${table}"
-      ${whereClause}
-      ORDER BY ${primaryKey} ASC
-      LIMIT ${batchSize}
-    `;
-    const params: (number | string)[] = lastId !== null ? [lastId] : [];
-    const result = await pool.query(query, params);
-    const rows = result.rows;
+      WHERE "${primaryKey}" > $1
+      ORDER BY "${primaryKey}"
+      LIMIT $2
+      `,
+      [lastId ?? 0, batchSize],
+    );
 
-    if (rows.length === 0) {
-      hasMore = false;
-    } else {
-      lastId = rows[rows.length - 1][primaryKey] as number | string;
-      logger.debug("Postgres batch fetched", { table, count: rows.length, lastId });
-      yield rows;
-      if (rows.length < batchSize) hasMore = false;
-    }
+    if (!rows.length) break;
+
+    lastId = rows[rows.length - 1][primaryKey] as number | string;
+
+    yield rows;
   }
-
-  logger.info("Finished Postgres extraction", { table });
+  console.log("Finished Postgres extraction", { table });
 }
 
 export async function countPgRows(table: string): Promise<number> {

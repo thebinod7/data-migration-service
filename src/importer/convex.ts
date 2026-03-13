@@ -51,6 +51,8 @@ export async function writeBatch(
   convexTable: string,
   documents: Record<string, unknown>[]
 ): Promise<void> {
+  console.log("writing to convexbatch===>", documents.length);
+  return new Promise((resolve) => setTimeout(resolve, 100));
   if (documents.length === 0) return;
   const { retryAttempts, retryDelayMs } = config.migration;
   let lastError: Error | null = null;
