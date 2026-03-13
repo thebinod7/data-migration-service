@@ -45,14 +45,12 @@ export const config = {
       sourceTable: "tbl_tribes",
       convexTable: "tribes",
       primaryKey: "id",
-      transform: "transformTribe",
     },
     {
       source: "postgres" as const,
       sourceTable: "tbl_invites",
       convexTable: "invites",
       primaryKey: "id",
-      transform: "transformTribe",
     }
   ],
 };
