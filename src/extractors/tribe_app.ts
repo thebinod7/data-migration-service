@@ -49,7 +49,7 @@ export const testPgConnection = async () => {
 
 export async function* extractPostgresBatched(
   table: string,
-  primaryKey: string,
+  pkColumn: string,
   batchSize: number,
   lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
@@ -59,8 +59,8 @@ export async function* extractPostgresBatched(
     const { rows } = await pool.query(
       `
       SELECT * FROM "${table}"
-      WHERE "${primaryKey}" > $1
-      ORDER BY "${primaryKey}"
+      WHERE "${pkColumn}" > $1
+      ORDER BY "${pkColumn}"
       LIMIT $2
       `,
       [lastId ?? 0, batchSize],
@@ -68,11 +68,11 @@ export async function* extractPostgresBatched(
 
     if (!rows.length) break;
 
-    lastId = rows[rows.length - 1][primaryKey] as number | string;
+    lastId = rows[rows.length - 1][pkColumn] as number | string;
 
     yield rows;
   }
-  console.log("Finished Postgres extraction", { table });
+  console.log("Finished tribe app tables extraction", { table });
 }
 
 export async function countPgRows(table: string): Promise<number> {

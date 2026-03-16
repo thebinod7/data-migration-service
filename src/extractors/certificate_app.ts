@@ -21,29 +21,37 @@ export function getMysqlPool(): mysql.Pool {
 
 export async function* extractMysqlBatched(
   table: string,
-  primaryKey: string,
+  pkColumn: string,
   batchSize: number,
   lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
-  await pool.query("SELECT 1");
-  console.log("MySQL connected");
+  // await pool.query("SELECT 1");
 
   while (true) {
-    const [rows] = await pool.query<mysql.RowDataPacket[]>(
-      `SELECT id,email FROM \`${table}\` LIMIT 10`,
-    );
+    const query = `
+      SELECT * FROM \`${table}\`
+      WHERE \`${pkColumn}\` > ?
+      ORDER BY \`${pkColumn}\` ASC
+      LIMIT ${batchSize}
+    `;
+
+    // Only lastId is passed as parameter
+    const [rows] = await pool.execute<mysql.RowDataPacket[]>(query, [
+      lastId ?? 0,
+    ]);
 
     const list = Array.isArray(rows) ? rows : [];
 
     if (!list.length) break;
+    // Update lastId for next batch
+    lastId = list[list.length - 1][pkColumn] as number | string;
 
-    lastId = list[list.length - 1][primaryKey] as number | string;
-
+    // Yield current batch
     yield list as Record<string, unknown>[];
   }
 
-  console.log("Finished MySQL extraction", { table });
+  console.log("Finished certficate app tables extraction", { table });
 }
 
 export async function countMysqlRows(table: string): Promise<number> {

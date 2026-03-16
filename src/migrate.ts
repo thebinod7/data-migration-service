@@ -34,10 +34,9 @@ async function runMigration(): Promise<void> {
   // 3. Migrate tables
   try {
     for (const tableConfig of tables) {
-      console.log("Migrating table", tableConfig);
+      console.log("Migrating table=>", tableConfig);
       if (tableConfig.source === DB_SOURCES.TRIBE_APP) {
-        console.log("===SKIP====");
-        // await migrateTribeAppDataToConvex(tableConfig);
+        await migrateTribeAppDataToConvex(tableConfig);
       }
       if (tableConfig.source === DB_SOURCES.CERTIFICATE_APP) {
         await migrateCertificateAppDataToConvex(tableConfig);
@@ -59,7 +58,7 @@ runMigration().catch((err) => {
 async function migrateTribeAppDataToConvex(
   tableConfig: TableConfig,
 ): Promise<void> {
-  const { source, sourceTable, convexTable, primaryKey } = tableConfig;
+  const { sourceTable, convexTable, primaryKey } = tableConfig;
 
   const batchSize = config.migration.batchSize;
   const resumeAfterId = getLastPrimaryKey(convexTable);
