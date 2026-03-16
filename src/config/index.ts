@@ -45,8 +45,8 @@ export const config = {
     },
     {
       source: DB_SOURCES.CERTIFICATE_APP,
-      sourceTable: "tbl_certificates",
-      convexTable: "cvx_certificates",
+      sourceTable: "users",
+      convexTable: "cvx_users",
       primaryKey: "id",
     },
   ],

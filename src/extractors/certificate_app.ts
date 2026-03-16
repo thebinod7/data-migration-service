@@ -26,16 +26,12 @@ export async function* extractMysqlBatched(
   lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
+  await pool.query("SELECT 1");
+  console.log("MySQL connected");
 
   while (true) {
-    const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-      `
-      SELECT * FROM \`${table}\`
-      WHERE \`${primaryKey}\` > ?
-      ORDER BY \`${primaryKey}\`
-      LIMIT ?
-      `,
-      [lastId ?? 0, batchSize],
+    const [rows] = await pool.query<mysql.RowDataPacket[]>(
+      `SELECT id,email FROM \`${table}\` LIMIT 10`,
     );
 
     const list = Array.isArray(rows) ? rows : [];
