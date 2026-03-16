@@ -7,7 +7,7 @@ let pool: Pool | null = null;
 export function getPgPool() {
   if (!pool) {
     pool = new Pool({
-      ...config.postgres,
+      ...config.tribe_db,
       max: 10,
       connectionTimeoutMillis: 8000,
       idleTimeoutMillis: 5000,

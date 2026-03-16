@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { env } from "./config/env";
-import { listTribes, testPgConnection } from "./extractors/postgres";
+import { listTribes, testPgConnection } from "./extractors/tribe_app";
 
 dotenv.config();
 

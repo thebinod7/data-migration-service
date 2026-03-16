@@ -1,17 +1,16 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
-import { logger } from "../utils/logger";
 
 let pool: mysql.Pool | null = null;
 
 export function getMysqlPool(): mysql.Pool {
   if (!pool) {
     pool = mysql.createPool({
-      host: config.mysql.host,
-      port: config.mysql.port,
-      user: config.mysql.user,
-      password: config.mysql.password,
-      database: config.mysql.database,
+      host: config.certificate_db.host,
+      port: config.certificate_db.port,
+      user: config.certificate_db.user,
+      password: config.certificate_db.password,
+      database: config.certificate_db.database,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,

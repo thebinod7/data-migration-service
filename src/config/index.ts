@@ -1,14 +1,14 @@
 import { DB_SOURCES } from "../constants/contants";
 
 export const config = {
-  mysql: {
-    host: process.env.MYSQL_HOST!,
-    port: Number(process.env.MYSQL_PORT || 3306),
-    user: process.env.MYSQL_USER!,
-    password: process.env.MYSQL_PASSWORD!,
-    database: process.env.MYSQL_DATABASE!,
+  certificate_db: {
+    host: process.env.CERT_DB_HOST!,
+    port: Number(process.env.CERT_DB_PORT || 3306),
+    user: process.env.CERT_DB_USER!,
+    password: process.env.CERT_DB_PASSWORD!,
+    database: process.env.CERT_DATABASE!,
   },
-  postgres: {
+  tribe_db: {
     host: process.env.PG_HOST!,
     port: Number(process.env.PG_PORT || 5432),
     user: process.env.PG_USER!,

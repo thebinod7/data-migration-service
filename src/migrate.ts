@@ -1,8 +1,11 @@
 import "dotenv/config";
 import type { TableConfig } from "./config";
 import { config } from "./config";
-import { closeMysqlPool, extractMysqlBatched } from "./extractors/mysql";
-import { closePgPool, extractPostgresBatched } from "./extractors/postgres";
+import {
+  closeMysqlPool,
+  extractMysqlBatched,
+} from "./extractors/certificate_app";
+import { closePgPool, extractPostgresBatched } from "./extractors/tribe_app";
 import { writeBatch, writeCertificateAppDataBached } from "./importer/convex";
 import {
   getLastPrimaryKey,
