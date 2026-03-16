@@ -19,7 +19,9 @@ export function getPgPool() {
 /** Demo helper: list first 10 rows from a Postgres table (uses first postgres table from config, or tbl_tribes). */
 export const listTribes = async () => {
   try {
-    const table = config.tables.find((t) => t.source === "postgres")?.sourceTable ?? "tbl_tribes";
+    const table =
+      config.tables.find((t) => t.source === "postgres")?.sourceTable ??
+      "tbl_tribes";
     const pool = getPgPool();
     const res = await pool.query(`SELECT * FROM "${table}" LIMIT 10`);
     return res.rows;

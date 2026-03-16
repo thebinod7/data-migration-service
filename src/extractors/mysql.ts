@@ -23,45 +23,38 @@ export function getMysqlPool(): mysql.Pool {
 export async function* extractMysqlBatched(
   table: string,
   primaryKey: string,
-  batchSize = config.migration.batchSize,
-  resumeAfterId: number | string | null = null,
+  batchSize: number,
+  lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
-  let lastId: number | string | null = resumeAfterId;
-  let hasMore = true;
 
-  logger.info("Starting MySQL extraction", { table, primaryKey, resumeAfterId });
-
-  while (hasMore) {
-    const whereClause = lastId !== null ? `WHERE \`${primaryKey}\` > ?` : "";
-    const query = `
+  while (true) {
+    const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+      `
       SELECT * FROM \`${table}\`
-      ${whereClause}
-      ORDER BY \`${primaryKey}\` ASC
+      WHERE \`${primaryKey}\` > ?
+      ORDER BY \`${primaryKey}\`
       LIMIT ?
-    `;
-    const params: (number | string)[] = lastId !== null ? [lastId, batchSize] : [batchSize];
-    const [rows] = await pool.execute<mysql.RowDataPacket[]>(query, params);
+      `,
+      [lastId ?? 0, batchSize],
+    );
+
     const list = Array.isArray(rows) ? rows : [];
 
-    if (list.length === 0) {
-      hasMore = false;
-    } else {
-      const last = list[list.length - 1];
-      lastId = last[primaryKey] as number | string;
-      logger.debug("MySQL batch fetched", { table, count: list.length, lastId });
-      yield list as Record<string, unknown>[];
-      if (list.length < batchSize) hasMore = false;
-    }
+    if (!list.length) break;
+
+    lastId = list[list.length - 1][primaryKey] as number | string;
+
+    yield list as Record<string, unknown>[];
   }
 
-  logger.info("Finished MySQL extraction", { table });
+  console.log("Finished MySQL extraction", { table });
 }
 
 export async function countMysqlRows(table: string): Promise<number> {
   const pool = getMysqlPool();
   const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-    `SELECT COUNT(*) as count FROM \`${table}\``
+    `SELECT COUNT(*) as count FROM \`${table}\``,
   );
   const row = Array.isArray(rows) ? rows[0] : (rows as any)?.[0];
   return Number(row?.count ?? 0);

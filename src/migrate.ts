@@ -3,7 +3,7 @@ import type { TableConfig } from "./config";
 import { config } from "./config";
 import { closeMysqlPool, extractMysqlBatched } from "./extractors/mysql";
 import { closePgPool, extractPostgresBatched } from "./extractors/postgres";
-import { writeBatch } from "./importer/convex";
+import { writeBatch, writeCertificateAppDataBached } from "./importer/convex";
 import {
   getLastPrimaryKey,
   initCheckpointFromEnv,
@@ -11,6 +11,7 @@ import {
   saveCheckpoint,
 } from "./utils/checkpoint";
 import { logger } from "./utils/logger";
+import { DB_SOURCES } from "./constants/contants";
 
 async function runMigration(): Promise<void> {
   logger.info("Migration started", {
@@ -31,9 +32,13 @@ async function runMigration(): Promise<void> {
   try {
     for (const tableConfig of tables) {
       console.log("Migrating table", tableConfig);
-      await migrateTribeAppDataToConvex(tableConfig);
-      // Migrate Certificate App Data
-      // Migrate WP App Data
+      if (tableConfig.source === DB_SOURCES.TRIBE_APP) {
+        console.log("===SKIP====");
+        // await migrateTribeAppDataToConvex(tableConfig);
+      }
+      if (tableConfig.source === DB_SOURCES.CERTIFICATE_APP) {
+        await migrateCertificateAppDataToConvex(tableConfig);
+      }
     }
   } finally {
     await closePgPool();
@@ -67,6 +72,37 @@ async function migrateTribeAppDataToConvex(
     // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
       await writeBatch(convexTable, rows);
+    } else {
+      logger.debug("Dry run: skip Convex write", {
+        table: convexTable,
+        count: rows.length,
+      });
+    }
+
+    const lastId = rows[rows.length - 1][primaryKey];
+    if (lastId != null && !isCheckpointDisabled()) {
+      saveCheckpoint(convexTable, lastId as number | string);
+    }
+  }
+}
+
+async function migrateCertificateAppDataToConvex(tableConfig: TableConfig) {
+  const { sourceTable, convexTable, primaryKey } = tableConfig;
+
+  const batchSize = config.migration.batchSize;
+  const resumeAfterId = getLastPrimaryKey(convexTable);
+
+  const msqlExtractor = extractMysqlBatched(
+    sourceTable,
+    primaryKey,
+    batchSize,
+    resumeAfterId,
+  );
+
+  for await (const rows of msqlExtractor) {
+    // TODO: tranform rows and save checkpoint
+    if (!config.dryRun) {
+      await writeCertificateAppDataBached(convexTable, rows);
     } else {
       logger.debug("Dry run: skip Convex write", {
         table: convexTable,

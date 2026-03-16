@@ -15,7 +15,7 @@ async function sleep(ms: number): Promise<void> {
  */
 async function callInsertBatch(
   table: string,
-  documents: Record<string, unknown>[]
+  documents: Record<string, unknown>[],
 ): Promise<void> {
   const url = `${config.convex.deploymentUrl.replace(/\/$/, "")}/api/mutation`;
   const body = {
@@ -38,7 +38,11 @@ async function callInsertBatch(
     const text = await res.text();
     throw new Error(`Convex mutation failed ${res.status}: ${text}`);
   }
-  const data = (await res.json()) as { status: string; errorMessage?: string; value?: unknown };
+  const data = (await res.json()) as {
+    status: string;
+    errorMessage?: string;
+    value?: unknown;
+  };
   if (data.status === "error") {
     throw new Error(data.errorMessage ?? "Convex mutation error");
   }
@@ -49,7 +53,7 @@ async function callInsertBatch(
  */
 export async function writeBatch(
   convexTable: string,
-  documents: Record<string, unknown>[]
+  documents: Record<string, unknown>[],
 ): Promise<void> {
   console.log("writing to convexbatch===>", documents.length);
   return new Promise((resolve) => setTimeout(resolve, 100));
@@ -78,4 +82,12 @@ export async function writeBatch(
     }
   }
   throw lastError ?? new Error("Convex batch write failed");
+}
+
+export async function writeCertificateAppDataBached(
+  convexTable: string,
+  documents: Record<string, unknown>[],
+) {
+  console.log("writing to convexbatch===>", documents.length);
+  return new Promise((resolve) => setTimeout(resolve, 100));
 }

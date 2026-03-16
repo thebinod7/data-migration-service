@@ -1,4 +1,4 @@
-
+import { DB_SOURCES } from "../constants/contants";
 
 export const config = {
   mysql: {
@@ -26,32 +26,29 @@ export const config = {
     retryDelayMs: 1000,
   },
 
-  /** When true, only extract and transform; do not write to Convex. */
   dryRun: process.env.DRY_RUN === "true" || process.env.DRY_RUN === "1",
-
 
   // Define which tables migrate from which source
   // and how they map to Convex tables (sourceTable = real DB table name)
   tables: [
-    // {
-    //   source: "mysql" as const,
-    //   sourceTable: "users",
-    //   convexTable: "users",
-    //   primaryKey: "id",
-    //   transform: "transformUser",
-    // },
     {
-      source: "postgres" as const,
+      source: DB_SOURCES.TRIBE_APP,
       sourceTable: "tbl_tribes",
-      convexTable: "tribes",
+      convexTable: "cvx_tribes",
       primaryKey: "id",
     },
     {
-      source: "postgres" as const,
+      source: DB_SOURCES.TRIBE_APP,
       sourceTable: "tbl_invites",
-      convexTable: "invites",
+      convexTable: "cvx_invites",
       primaryKey: "id",
-    }
+    },
+    {
+      source: DB_SOURCES.CERTIFICATE_APP,
+      sourceTable: "tbl_certificates",
+      convexTable: "cvx_certificates",
+      primaryKey: "id",
+    },
   ],
 };
 
