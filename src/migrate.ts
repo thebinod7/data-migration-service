@@ -3,10 +3,10 @@ import type { TableConfig } from "./config";
 import { config } from "./config";
 import { DB_SOURCES } from "./constants/contants";
 import {
-  closeMysqlPool,
+  closeCertificateMysqlPool,
   extractCertificateAppDataBatched
 } from "./extractors/certificate_app";
-import { closePgPool, extractTribeAppDataBatched } from "./extractors/tribe_app";
+import { closeTribePgPool, extractTribeAppDataBatched } from "./extractors/tribe_app";
 import { writeBatch, writeCertificateAppDataBached, writeWordpressAppDataBached } from "./importer/convex";
 import {
   getLastPrimaryKey,
@@ -15,7 +15,7 @@ import {
   saveCheckpoint,
 } from "./utils/checkpoint";
 import { logger } from "./utils/logger";
-import { extractWordpressAppDataBatched } from "./extractors/wp_app";
+import { extractWordpressAppDataBatched, closeWordpressMysqlPool } from "./extractors/wp_app";
 
 async function runMigration(): Promise<void> {
   logger.info("Migration started", {
@@ -47,8 +47,9 @@ async function runMigration(): Promise<void> {
       }
     }
   } finally {
-    await closePgPool();
-    await closeMysqlPool();
+    await closeTribePgPool();
+    await closeCertificateMysqlPool();
+    await closeWordpressMysqlPool();
   }
 
   logger.info("Migration finished");

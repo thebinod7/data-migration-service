@@ -63,7 +63,7 @@ export async function countMysqlRows(table: string): Promise<number> {
   return Number(row?.count ?? 0);
 }
 
-export async function closeMysqlPool(): Promise<void> {
+export async function closeCertificateMysqlPool(): Promise<void> {
   if (pool) {
     await pool.end();
     pool = null;

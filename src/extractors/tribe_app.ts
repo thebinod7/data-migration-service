@@ -81,7 +81,7 @@ export async function countPgRows(table: string): Promise<number> {
   return Number(result.rows[0].count);
 }
 
-export async function closePgPool() {
+export async function closeTribePgPool() {
   if (pool) {
     await pool.end();
     pool = null;
