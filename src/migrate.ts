@@ -1,12 +1,13 @@
 import "dotenv/config";
 import type { TableConfig } from "./config";
 import { config } from "./config";
+import { DB_SOURCES } from "./constants/contants";
 import {
   closeMysqlPool,
-  extractMysqlBatched,
+  extractCertificateAppDataBatched
 } from "./extractors/certificate_app";
-import { closePgPool, extractPostgresBatched } from "./extractors/tribe_app";
-import { writeBatch, writeCertificateAppDataBached } from "./importer/convex";
+import { closePgPool, extractTribeAppDataBatched } from "./extractors/tribe_app";
+import { writeBatch, writeCertificateAppDataBached, writeWordpressAppDataBached } from "./importer/convex";
 import {
   getLastPrimaryKey,
   initCheckpointFromEnv,
@@ -14,7 +15,7 @@ import {
   saveCheckpoint,
 } from "./utils/checkpoint";
 import { logger } from "./utils/logger";
-import { DB_SOURCES } from "./constants/contants";
+import { extractWordpressAppDataBatched } from "./extractors/wp_app";
 
 async function runMigration(): Promise<void> {
   logger.info("Migration started", {
@@ -41,6 +42,9 @@ async function runMigration(): Promise<void> {
       if (tableConfig.source === DB_SOURCES.CERTIFICATE_APP) {
         await migrateCertificateAppDataToConvex(tableConfig);
       }
+      if (tableConfig.source === DB_SOURCES.WORDPRESS_APP) {
+        await migrateWordpressAppDataToConvex(tableConfig);
+      }
     }
   } finally {
     await closePgPool();
@@ -63,7 +67,7 @@ async function migrateTribeAppDataToConvex(
   const batchSize = config.migration.batchSize;
   const resumeAfterId = getLastPrimaryKey(convexTable);
 
-  const pgExtractor = extractPostgresBatched(
+  const pgExtractor = extractTribeAppDataBatched(
     sourceTable,
     primaryKey,
     batchSize,
@@ -94,7 +98,7 @@ async function migrateCertificateAppDataToConvex(tableConfig: TableConfig) {
   const batchSize = config.migration.batchSize;
   const resumeAfterId = getLastPrimaryKey(convexTable);
 
-  const msqlExtractor = extractMysqlBatched(
+  const msqlExtractor = extractCertificateAppDataBatched(
     sourceTable,
     primaryKey,
     batchSize,
@@ -118,3 +122,38 @@ async function migrateCertificateAppDataToConvex(tableConfig: TableConfig) {
     }
   }
 }
+
+async function migrateWordpressAppDataToConvex(tableConfig: TableConfig) {
+  const { sourceTable, convexTable, primaryKey } = tableConfig;
+
+  const batchSize = config.migration.batchSize;
+  const resumeAfterId = getLastPrimaryKey(convexTable);
+
+  const msqlExtractor = extractWordpressAppDataBatched(
+    sourceTable,
+    primaryKey,
+    batchSize,
+    resumeAfterId,
+  );
+
+  for await (const rows of msqlExtractor) {
+    // TODO: tranform rows and save checkpoint
+    if (!config.dryRun) {
+      await writeWordpressAppDataBached(convexTable, rows);
+    } else {
+      logger.debug("Dry run: skip Convex write", {
+        table: convexTable,
+        count: rows.length,
+      });
+    }
+
+    const lastId = rows[rows.length - 1][primaryKey];
+    if (lastId != null && !isCheckpointDisabled()) {
+      saveCheckpoint(convexTable, lastId as number | string);
+    }
+  }
+}
+
+
+
+

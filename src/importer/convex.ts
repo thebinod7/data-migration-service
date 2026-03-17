@@ -91,3 +91,11 @@ export async function writeCertificateAppDataBached(
   console.log("writing to convexbatch===>", documents.length);
   return new Promise((resolve) => setTimeout(resolve, 100));
 }
+
+export async function writeWordpressAppDataBached(
+  convexTable: string,
+  documents: Record<string, unknown>[],
+) {
+  console.log("writing to convexbatch===>", documents.length);
+  return new Promise((resolve) => setTimeout(resolve, 100));
+}

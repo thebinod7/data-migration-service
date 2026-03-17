@@ -19,7 +19,7 @@ export function getMysqlPool(): mysql.Pool {
   return pool;
 }
 
-export async function* extractMysqlBatched(
+export async function* extractCertificateAppDataBatched(
   table: string,
   pkColumn: string,
   batchSize: number,

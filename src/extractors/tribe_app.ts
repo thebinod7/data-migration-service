@@ -47,7 +47,7 @@ export const testPgConnection = async () => {
   }
 };
 
-export async function* extractPostgresBatched(
+export async function* extractTribeAppDataBatched(
   table: string,
   pkColumn: string,
   batchSize: number,
