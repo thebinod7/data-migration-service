@@ -1,7 +1,11 @@
 import { config } from "../config";
 import { logger } from "../utils/logger";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../convex/_generated/api";
 
 const MUTATION_PATH = "migrations:insertBatch";
+
+const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -51,12 +55,24 @@ async function callInsertBatch(
 /**
  * Write a batch of documents to Convex. Retries with backoff on failure.
  */
-export async function writeBatch(
+export async function writeTribeAppDataBatched(
   convexTable: string,
   documents: Record<string, unknown>[],
-): Promise<void> {
+): Promise<any> {
   console.log("writing to convexbatch===>", documents.length);
-  return new Promise((resolve) => setTimeout(resolve, 100));
+  const result = await convex.mutation(api.migrations.bulkInsertUsers, {
+    records: [
+      {
+        id: "id",
+        name: "name",
+        email: "email",
+        createdAt: 0,
+      },
+    ],
+  });
+  console.log("result===>", result);
+  return result;
+  // return new Promise((resolve) => setTimeout(resolve, 100));
   if (documents.length === 0) return;
   const { retryAttempts, retryDelayMs } = config.migration;
   let lastError: Error | null = null;

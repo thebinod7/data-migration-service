@@ -28,7 +28,7 @@ export const listTribes = async () => {
   } catch (err: any) {
     logger.error("Error fetching tribes", { error: err?.message });
   } finally {
-    await closePgPool();
+    await closeTribePgPool();
   }
 };
 

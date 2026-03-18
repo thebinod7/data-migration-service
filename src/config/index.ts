@@ -43,24 +43,28 @@ export const config = {
       sourceTable: "tbl_tribes",
       convexTable: "cvx_tribes",
       primaryKey: "id",
+      skipMigration: false,
     },
     {
       source: DB_SOURCES.TRIBE_APP,
       sourceTable: "tbl_invites",
       convexTable: "cvx_invites",
       primaryKey: "id",
+      skipMigration: true,
     },
     {
       source: DB_SOURCES.CERTIFICATE_APP,
       sourceTable: "users",
       convexTable: "cvx_users",
       primaryKey: "id",
+      skipMigration: true,
     },
     {
       source: DB_SOURCES.WORDPRESS_APP,
       sourceTable: "76a_fa_user_logins",
       convexTable: "cvx_user_logins",
       primaryKey: "id",
+      skipMigration: true,
     },
   ],
 };

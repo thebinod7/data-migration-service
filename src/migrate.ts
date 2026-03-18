@@ -4,10 +4,17 @@ import { config } from "./config";
 import { DB_SOURCES } from "./constants/contants";
 import {
   closeCertificateMysqlPool,
-  extractCertificateAppDataBatched
+  extractCertificateAppDataBatched,
 } from "./extractors/certificate_app";
-import { closeTribePgPool, extractTribeAppDataBatched } from "./extractors/tribe_app";
-import { writeBatch, writeCertificateAppDataBached, writeWordpressAppDataBached } from "./importer/convex";
+import {
+  closeTribePgPool,
+  extractTribeAppDataBatched,
+} from "./extractors/tribe_app";
+import {
+  writeTribeAppDataBatched,
+  writeCertificateAppDataBached,
+  writeWordpressAppDataBached,
+} from "./importer/convex";
 import {
   getLastPrimaryKey,
   initCheckpointFromEnv,
@@ -15,7 +22,10 @@ import {
   saveCheckpoint,
 } from "./utils/checkpoint";
 import { logger } from "./utils/logger";
-import { extractWordpressAppDataBatched, closeWordpressMysqlPool } from "./extractors/wp_app";
+import {
+  extractWordpressAppDataBatched,
+  closeWordpressMysqlPool,
+} from "./extractors/wp_app";
 
 async function runMigration(): Promise<void> {
   logger.info("Migration started", {
@@ -36,13 +46,22 @@ async function runMigration(): Promise<void> {
   try {
     for (const tableConfig of tables) {
       console.log("Migrating table=>", tableConfig);
-      if (tableConfig.source === DB_SOURCES.TRIBE_APP) {
+      if (
+        tableConfig.source === DB_SOURCES.TRIBE_APP &&
+        !tableConfig.skipMigration
+      ) {
         await migrateTribeAppDataToConvex(tableConfig);
       }
-      if (tableConfig.source === DB_SOURCES.CERTIFICATE_APP) {
+      if (
+        tableConfig.source === DB_SOURCES.CERTIFICATE_APP &&
+        !tableConfig.skipMigration
+      ) {
         await migrateCertificateAppDataToConvex(tableConfig);
       }
-      if (tableConfig.source === DB_SOURCES.WORDPRESS_APP) {
+      if (
+        tableConfig.source === DB_SOURCES.WORDPRESS_APP &&
+        !tableConfig.skipMigration
+      ) {
         await migrateWordpressAppDataToConvex(tableConfig);
       }
     }
@@ -78,7 +97,7 @@ async function migrateTribeAppDataToConvex(
   for await (const rows of pgExtractor) {
     // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
-      await writeBatch(convexTable, rows);
+      await writeTribeAppDataBatched(convexTable, rows);
     } else {
       logger.debug("Dry run: skip Convex write", {
         table: convexTable,
@@ -154,7 +173,3 @@ async function migrateWordpressAppDataToConvex(tableConfig: TableConfig) {
     }
   }
 }
-
-
-
-
