@@ -11,7 +11,6 @@ import {
   extractTribeAppDataBatched,
 } from "./extractors/tribe_app";
 import {
-  writeTribeAppDataBatched,
   writeCertificateAppDataBached,
   writeWordpressAppDataBached,
 } from "./importer/convex";
@@ -45,7 +44,6 @@ async function runMigration(): Promise<void> {
   // 3. Migrate tables
   try {
     for (const tableConfig of tables) {
-      console.log("Migrating table=>", tableConfig);
       if (
         tableConfig.source === DB_SOURCES.TRIBE_APP &&
         !tableConfig.skipMigration
@@ -62,6 +60,7 @@ async function runMigration(): Promise<void> {
         tableConfig.source === DB_SOURCES.WORDPRESS_APP &&
         !tableConfig.skipMigration
       ) {
+        console.log("Migration in action=>", tableConfig);
         await migrateWordpressAppDataToConvex(tableConfig);
       }
     }
@@ -97,7 +96,7 @@ async function migrateTribeAppDataToConvex(
   for await (const rows of pgExtractor) {
     // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
-      await writeTribeAppDataBatched(convexTable, rows);
+      // Write to Tribe DB
     } else {
       logger.debug("Dry run: skip Convex write", {
         table: convexTable,
@@ -157,19 +156,17 @@ async function migrateWordpressAppDataToConvex(tableConfig: TableConfig) {
   );
 
   for await (const rows of msqlExtractor) {
-    // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
-      await writeWordpressAppDataBached(convexTable, rows);
+      await writeWordpressAppDataBached(sourceTable, rows);
+      const lastId = rows[rows.length - 1][primaryKey] || 1;
+      if (lastId != null && !isCheckpointDisabled()) {
+        saveCheckpoint(convexTable, lastId as number | string);
+      }
     } else {
       logger.debug("Dry run: skip Convex write", {
         table: convexTable,
         count: rows.length,
       });
-    }
-
-    const lastId = rows[rows.length - 1][primaryKey];
-    if (lastId != null && !isCheckpointDisabled()) {
-      saveCheckpoint(convexTable, lastId as number | string);
     }
   }
 }
