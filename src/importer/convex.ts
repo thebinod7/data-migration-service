@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
 import { parseWpUsersToConvex } from "../transformers/wp-data";
+import { mapInviteToReferralCode } from "../transformers/tribe-data";
 
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
@@ -16,8 +17,16 @@ export async function writeTribeAppDataBached(
   sourceTable: string,
   documents: Record<string, unknown>[],
 ) {
-  console.log("writing to convexbatch===>", documents.length);
-  return new Promise((resolve) => setTimeout(resolve, 100));
+  if (sourceTable === "tbl_invites") {
+    console.log("Writing invites to referral codes=>", documents.length);
+    const parsedInvites = mapInviteToReferralCode(documents);
+    return convex.mutation(api.migrations.bulkInsertReferralCodes, {
+      records: parsedInvites,
+    });
+  }
+  if (sourceTable === "tbl_tribes") {
+    console.log("Writing tribes=>", documents.length);
+  }
 }
 
 export async function writeWordpressAppDataBached(

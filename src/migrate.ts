@@ -94,7 +94,6 @@ async function migrateTribeAppDataToConvex(
   );
 
   for await (const rows of pgExtractor) {
-    // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
       await writeTribeAppDataBached(sourceTable, rows);
 
