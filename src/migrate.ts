@@ -12,6 +12,7 @@ import {
 } from "./extractors/tribe_app";
 import {
   writeCertificateAppDataBached,
+  writeTribeAppDataBached,
   writeWordpressAppDataBached,
 } from "./importer/convex";
 import {
@@ -46,21 +47,20 @@ async function runMigration(): Promise<void> {
     for (const tableConfig of tables) {
       if (
         tableConfig.source === DB_SOURCES.TRIBE_APP &&
-        !tableConfig.skipMigration
+        tableConfig.runMigration
       ) {
         await migrateTribeAppDataToConvex(tableConfig);
       }
       if (
         tableConfig.source === DB_SOURCES.CERTIFICATE_APP &&
-        !tableConfig.skipMigration
+        tableConfig.runMigration
       ) {
         await migrateCertificateAppDataToConvex(tableConfig);
       }
       if (
         tableConfig.source === DB_SOURCES.WORDPRESS_APP &&
-        !tableConfig.skipMigration
+        tableConfig.runMigration
       ) {
-        console.log("Migration in action=>", tableConfig);
         await migrateWordpressAppDataToConvex(tableConfig);
       }
     }
@@ -70,7 +70,7 @@ async function runMigration(): Promise<void> {
     await closeWordpressMysqlPool();
   }
 
-  logger.info("Migration finished");
+  logger.info("===Migration finished===");
 }
 
 runMigration().catch((err) => {
@@ -96,17 +96,17 @@ async function migrateTribeAppDataToConvex(
   for await (const rows of pgExtractor) {
     // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
-      // Write to Tribe DB
+      await writeTribeAppDataBached(sourceTable, rows);
+
+      const lastId = rows[rows.length - 1][primaryKey] || 1;
+      if (lastId != null && !isCheckpointDisabled()) {
+        saveCheckpoint(convexTable, lastId as number | string);
+      }
     } else {
       logger.debug("Dry run: skip Convex write", {
         table: convexTable,
         count: rows.length,
       });
-    }
-
-    const lastId = rows[rows.length - 1][primaryKey];
-    if (lastId != null && !isCheckpointDisabled()) {
-      saveCheckpoint(convexTable, lastId as number | string);
     }
   }
 }
@@ -127,17 +127,17 @@ async function migrateCertificateAppDataToConvex(tableConfig: TableConfig) {
   for await (const rows of msqlExtractor) {
     // TODO: tranform rows and save checkpoint
     if (!config.dryRun) {
-      await writeCertificateAppDataBached(convexTable, rows);
+      await writeCertificateAppDataBached(sourceTable, rows);
+
+      const lastId = rows[rows.length - 1][primaryKey] || 1;
+      if (lastId != null && !isCheckpointDisabled()) {
+        saveCheckpoint(convexTable, lastId as number | string);
+      }
     } else {
       logger.debug("Dry run: skip Convex write", {
         table: convexTable,
         count: rows.length,
       });
-    }
-
-    const lastId = rows[rows.length - 1][primaryKey];
-    if (lastId != null && !isCheckpointDisabled()) {
-      saveCheckpoint(convexTable, lastId as number | string);
     }
   }
 }

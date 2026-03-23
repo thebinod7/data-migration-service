@@ -5,7 +5,15 @@ import { parseWpUsersToConvex } from "../transformers/wp-data";
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 export async function writeCertificateAppDataBached(
-  convexTable: string,
+  sourceTable: string,
+  documents: Record<string, unknown>[],
+) {
+  console.log("writing to convexbatch===>", documents.length);
+  return new Promise((resolve) => setTimeout(resolve, 100));
+}
+
+export async function writeTribeAppDataBached(
+  sourceTable: string,
   documents: Record<string, unknown>[],
 ) {
   console.log("writing to convexbatch===>", documents.length);

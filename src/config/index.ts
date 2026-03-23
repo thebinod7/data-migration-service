@@ -39,32 +39,39 @@ export const config = {
   // and how they map to Convex tables (sourceTable = real DB table name)
   tables: [
     {
+      source: DB_SOURCES.WORDPRESS_APP,
+      sourceTable: "76a_users",
+      convexTable: "users",
+      primaryKey: "ID",
+      runMigration: false,
+    },
+    {
+      source: DB_SOURCES.WORDPRESS_APP,
+      sourceTable: "76a_accounts",
+      convexTable: "accounts",
+      primaryKey: "ID",
+      runMigration: true,
+    },
+    {
       source: DB_SOURCES.TRIBE_APP,
       sourceTable: "tbl_tribes",
       convexTable: "cvx_tribes",
       primaryKey: "ID",
-      skipMigration: true,
+      runMigration: false,
     },
     {
       source: DB_SOURCES.TRIBE_APP,
       sourceTable: "tbl_invites",
       convexTable: "cvx_invites",
       primaryKey: "ID",
-      skipMigration: true,
+      runMigration: false,
     },
     {
       source: DB_SOURCES.CERTIFICATE_APP,
-      sourceTable: "users",
-      convexTable: "cvx_users",
+      sourceTable: "accounts",
+      convexTable: "accounts",
       primaryKey: "ID",
-      skipMigration: true,
-    },
-    {
-      source: DB_SOURCES.WORDPRESS_APP,
-      sourceTable: "76a_users",
-      convexTable: "users",
-      primaryKey: "ID",
-      skipMigration: false,
+      runMigration: false,
     },
   ],
 };
