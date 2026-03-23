@@ -57,7 +57,7 @@ export const config = {
       sourceTable: "tbl_invites",
       convexTable: "referralCodes",
       primaryKey: "id",
-      runMigration: true,
+      runMigration: false,
     },
     {
       source: DB_SOURCES.TRIBE_APP,

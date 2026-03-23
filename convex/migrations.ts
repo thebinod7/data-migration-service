@@ -1,6 +1,24 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+export const bulkInsertTribes = mutation({
+  args: {
+    records: v.array(
+      v.object({
+        leaderAccountId: v.string(),
+        type: v.string(),
+        createdAt: v.number(),
+      }),
+    ),
+  },
+
+  handler: async (ctx, args) => {
+    for (const record of args.records) {
+      await ctx.db.insert("tribes", record);
+    }
+  },
+});
+
 export const bulkInsertReferralCodes = mutation({
   args: {
     records: v.array(

@@ -1,7 +1,10 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
 import { parseWpUsersToConvex } from "../transformers/wp-data";
-import { mapInviteToReferralCode } from "../transformers/tribe-data";
+import {
+  mapInviteToReferralCode,
+  mapTribeFieldsToConvex,
+} from "../transformers/tribe-data";
 
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
@@ -18,14 +21,18 @@ export async function writeTribeAppDataBached(
   documents: Record<string, unknown>[],
 ) {
   if (sourceTable === "tbl_invites") {
-    console.log("Writing invites to referral codes=>", documents.length);
+    console.log("Writing invites to convex==>", documents.length);
     const parsedInvites = mapInviteToReferralCode(documents);
     return convex.mutation(api.migrations.bulkInsertReferralCodes, {
       records: parsedInvites,
     });
   }
   if (sourceTable === "tbl_tribes") {
-    console.log("Writing tribes=>", documents.length);
+    console.log("Writing tribes to convex==>", documents.length);
+    const mappedData = mapTribeFieldsToConvex(documents);
+    return convex.mutation(api.migrations.bulkInsertTribes, {
+      records: mappedData,
+    });
   }
 }
 
