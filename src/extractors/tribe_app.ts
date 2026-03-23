@@ -65,14 +65,12 @@ export async function* extractTribeAppDataBatched(
       `,
       [lastId ?? 0, batchSize],
     );
-
     if (!rows.length) break;
 
     lastId = rows[rows.length - 1][pkColumn] as number | string;
-
     yield rows;
   }
-  console.log("Finished tribe app tables extraction", { table });
+  // console.log("Finished tribe app tables extraction", { table });
 }
 
 export async function countPgRows(table: string): Promise<number> {

@@ -16,7 +16,7 @@ type ConvexUser = {
   updatedAt: number;
 };
 
-export function parseWpUsersToConvex(mysqlUsers: any[]): ConvexUser[] {
+export function mapWordpressUsersToConvex(mysqlUsers: any[]): ConvexUser[] {
   const seen = new Set<number>();
 
   return mysqlUsers

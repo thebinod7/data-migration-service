@@ -70,7 +70,7 @@ async function runMigration(): Promise<void> {
     await closeWordpressMysqlPool();
   }
 
-  logger.info("===Migration finished===");
+  logger.info("===MIGRATION FINISHED===");
 }
 
 runMigration().catch((err) => {

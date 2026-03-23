@@ -1,4 +1,4 @@
-export const mapInviteToReferralCode = (invites: any[]) => {
+export const mapInviteFieldsToConvex = (invites: any[]) => {
   if (!invites.length) return [];
 
   return invites.map((invite) => {

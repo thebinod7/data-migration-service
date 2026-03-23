@@ -1,8 +1,8 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
-import { parseWpUsersToConvex } from "../transformers/wp-data";
+import { mapWordpressUsersToConvex } from "../transformers/wp-data";
 import {
-  mapInviteToReferralCode,
+  mapInviteFieldsToConvex,
   mapTribeFieldsToConvex,
 } from "../transformers/tribe-data";
 
@@ -22,7 +22,7 @@ export async function writeTribeAppDataBached(
 ) {
   if (sourceTable === "tbl_invites") {
     console.log("Writing invites to convex==>", documents.length);
-    const parsedInvites = mapInviteToReferralCode(documents);
+    const parsedInvites = mapInviteFieldsToConvex(documents);
     return convex.mutation(api.migrations.bulkInsertReferralCodes, {
       records: parsedInvites,
     });
@@ -43,7 +43,7 @@ export async function writeWordpressAppDataBached(
   if (sourceTable === "76a_users") {
     // TODO: Make unique field and ssoId??
     console.log("writing users===>", documents.length);
-    const parsedUsers = parseWpUsersToConvex(documents);
+    const parsedUsers = mapWordpressUsersToConvex(documents);
     return convex.mutation(api.migrations.bulkInsertUsers, {
       records: parsedUsers,
     });
