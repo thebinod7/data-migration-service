@@ -27,6 +27,9 @@ export async function* extractWordpressAppDataBatched(
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 
+  const tables = await listTables();
+  console.log("Tables", tables);
+
   while (true) {
     const query = `
       SELECT * FROM \`${table}\`
@@ -68,3 +71,24 @@ export async function closeWordpressMysqlPool(): Promise<void> {
     pool = null;
   }
 }
+
+// Write a code to list tables in a mysql database
+
+const listTables = async () => {
+  try {
+    const pool = getMysqlPool();
+
+    const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+      `SHOW TABLES LIKE '%wp_posts%'`,
+    );
+
+    // Extract table names (column name is dynamic: Tables_in_<db>)
+    const tableNames = rows.map((row) => Object.values(row)[0]);
+
+    return tableNames;
+  } catch (err: any) {
+    console.error("Error fetching tables", { error: err?.message });
+  } finally {
+    await closeWordpressMysqlPool();
+  }
+};

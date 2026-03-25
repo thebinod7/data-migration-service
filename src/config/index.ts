@@ -46,11 +46,18 @@ export const config = {
       runMigration: false,
     },
     {
+      source: DB_SOURCES.WORDPRESS_APP,
+      sourceTable: "wp_posts",
+      convexTable: "calculatorResponseFields",
+      primaryKey: "ID",
+      runMigration: true,
+    },
+    {
       source: DB_SOURCES.CERTIFICATE_APP,
       sourceTable: "users",
       convexTable: "accounts",
       primaryKey: "id",
-      runMigration: true,
+      runMigration: false,
     },
     {
       source: DB_SOURCES.TRIBE_APP,

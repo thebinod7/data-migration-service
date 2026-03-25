@@ -1,11 +1,3 @@
-// type MySQLUser = {
-//   ID: number;
-//   user_email: string;
-//   display_name: string;
-//   user_registered: Date | string;
-//   role: "user" | "admin";
-// };
-
 type ConvexUser = {
   ssoUserId: string;
   email: string;
@@ -39,7 +31,7 @@ export function mapWordpressUsersToConvex(mysqlUsers: any[]): ConvexUser[] {
         : createdAtDate.getTime();
 
       return {
-        ssoUserId: String(user.ID),
+        ssoUserId: String(user.ID), // TODO: Just make userId??
         email: user.user_email,
         firstName,
         lastName,

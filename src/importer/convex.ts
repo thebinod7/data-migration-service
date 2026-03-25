@@ -54,7 +54,8 @@ export async function writeWordpressAppDataBached(
       records: parsedUsers,
     });
   }
-  if (sourceTable === "76a_accounts") {
-    console.log("Write to account table");
+  if (sourceTable === "wp_posts") {
+    console.log("Write to account table:", documents.length);
+    console.log("DOC:==>", documents[0]);
   }
 }
