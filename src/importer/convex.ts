@@ -5,6 +5,7 @@ import {
   mapInviteFieldsToConvex,
   mapTribeFieldsToConvex,
 } from "../transformers/tribe-data";
+import { mapUsersFieldsToConvexAccount } from "../transformers/certificate-data";
 
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
@@ -12,8 +13,13 @@ export async function writeCertificateAppDataBached(
   sourceTable: string,
   documents: Record<string, unknown>[],
 ) {
-  console.log("writing to convexbatch===>", documents.length);
-  return new Promise((resolve) => setTimeout(resolve, 100));
+  if (sourceTable === "users") {
+    const mappedAccounts = mapUsersFieldsToConvexAccount(documents);
+    console.log("mappedAccounts==>", mappedAccounts[0]);
+    return convex.mutation(api.migrations.bulkInsertAccounts, {
+      records: mappedAccounts,
+    });
+  }
 }
 
 export async function writeTribeAppDataBached(

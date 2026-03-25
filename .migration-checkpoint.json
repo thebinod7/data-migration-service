@@ -11,6 +11,9 @@
     },
     "tribes": {
       "lastPrimaryKey": 372
+    },
+    "accounts": {
+      "lastPrimaryKey": 26
     }
   }
 }
