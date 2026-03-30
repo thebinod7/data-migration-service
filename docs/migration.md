@@ -81,19 +81,36 @@
 - createdAt: created_at
 - udpatedAt: timestamp
 
-### 6. ImpactRecords migration:
+### 6. ImpactRecords migration: `DB: Laravel` and `table: campaign_recipients,campaign_recipient_metas, campaigns
+
+`get details from each tables: Eg: campaign, campaign_meta, campgaign_rec`
 
 - impactId: Generate like; `ID-{year}-{random}`
 - accountId: Follow rule on doc
-- impactAmount
-- impactRegion
-- programId
-- templateId
-- source
-- state
-- attributionStatus
-- certificateNameOverride
-- orderId
-- originalEmail
-- purchaserEmail
-- createdAt
+- impactAmount: `campaign_rec.impact_kg`
+- impactRegion: `campaign.slug` OR from meta OR "PH" if Unknown
+- programId: `campaign.campaign_type_id` Lookup in Pre-setup config
+- templateId: `campaign.image_template_id` Lookup in Pre-setup Config
+- source: `campaign_rec.source + subscription_type`
+- state: `campaign_rec.status` => If failed, skip row
+- attributionStatus: if user found by email ? `assigned` : `unclaimed`
+- certificateNameOverride: `campaign_rec.name`
+- orderId: `campaign.order_id`
+- originalEmail: `campaign_rec.origin_email`
+- purchaserEmail: `campaign_recipients.email`
+- createdAt: `campaign_rec.created_at`
+
+### 7. Trials: Only for business accounts
+
+`get details from impact_trial_dates as itd`
+
+- accountId: user's business account.id
+- type: `itd.professional_impact_page`
+- startDate: `itd.start_date`
+- endDate: `itd.end_date`
+- source: "signup" for default trials, or determine from context
+- status: If endDate > now → "active", else → "expired"
+- createdAt: From source data
+- updatedAt: migration
+
+### 8. CalculatorReponse
