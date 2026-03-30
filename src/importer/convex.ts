@@ -20,6 +20,10 @@ export async function writeCertificateAppDataBached(
       records: mappedAccounts,
     });
   }
+  if (sourceTable === "personal_impact_pages") {
+    console.log("Writing impact pages to convex==>", documents.length);
+    console.log("DOC:==>", documents[0]);
+  }
 }
 
 export async function writeTribeAppDataBached(
