@@ -113,4 +113,26 @@
 - createdAt: From source data
 - updatedAt: migration
 
-### 8. CalculatorReponse
+### 8. CalculatorReponse: `DB: Wordpress and table: plastic_footprint`
+
+Calculator responses were stored as WordPress posts of type plastic_footprint, with the data in post_content as JSON.
+
+- userId: extract email from post and email=>convexUserId
+- accountId: User's personal `account.id`
+- attemptNumber: Count of calculator posts per user, ordered by date
+- country: parsed from post content
+- preferenceId: parsed from post content
+- answers: parsed from post content, convert to `Record<string,string>`
+- scoreTotal: `footprint_score` or computed from answer
+- scoreBase: Parsed from JSON
+- scoreByPage: Parsed from JSON
+- demographics: Parsed from JSON
+- newsletterOptIn: undefined
+- sdgPersonal: Parsed from JSON
+- sdgPlanet: Parsed from JSON
+- referredBy: Parsed from JSON
+- currentPage: "results" for completed, or last page from JSON
+- status: "completed" if score exists, else "in_progress"
+- completedAt: post_date if completed
+- createdAt: post_date
+- updatedAt: timestamp

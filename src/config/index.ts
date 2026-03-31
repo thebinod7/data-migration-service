@@ -43,7 +43,7 @@ export const config = {
       sourceTable: "76a_users",
       convexTable: "users",
       primaryKey: "ID",
-      runMigration: false,
+      runMigration: true,
     },
     {
       source: DB_SOURCES.WORDPRESS_APP,
@@ -64,7 +64,7 @@ export const config = {
       sourceTable: "personal_impact_pages",
       convexTable: "trials",
       primaryKey: "id",
-      runMigration: true,
+      runMigration: false,
     },
     {
       source: DB_SOURCES.CERTIFICATE_APP,

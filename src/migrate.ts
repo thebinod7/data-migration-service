@@ -9,6 +9,7 @@ import {
 import {
   closeTribePgPool,
   extractTribeAppDataBatched,
+  listTribes,
 } from "./extractors/tribe_app";
 import {
   writeCertificateAppDataBached,

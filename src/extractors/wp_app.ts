@@ -72,6 +72,16 @@ export async function closeWordpressMysqlPool(): Promise<void> {
   }
 }
 
+// List users
+export const listWpUsers = async (offset: number, limit: number) => {
+  console.log({ offset });
+  const pool = getMysqlPool();
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `SELECT * FROM \`76a_users\` ORDER BY ID ASC LIMIT ${Number(offset)}, ${Number(limit)}`,
+  );
+  return rows as Record<string, unknown>[];
+};
+
 // Write a code to list tables in a mysql database
 
 const listTables = async () => {
@@ -89,6 +99,6 @@ const listTables = async () => {
   } catch (err: any) {
     console.error("Error fetching tables", { error: err?.message });
   } finally {
-    await closeWordpressMysqlPool();
+    // await closeWordpressMysqlPool();
   }
 };

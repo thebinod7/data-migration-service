@@ -1,7 +1,7 @@
 {
   "tables": {
     "users": {
-      "lastPrimaryKey": 248620
+      "lastPrimaryKey": 248665
     },
     "cvx_tribes": {
       "lastPrimaryKey": 1
@@ -16,7 +16,7 @@
       "lastPrimaryKey": 26
     },
     "trials": {
-      "lastPrimaryKey": 285
+      "lastPrimaryKey": 286
     }
   }
 }
