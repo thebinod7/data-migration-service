@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
+import { MIGRATION_TABLE } from "../config/tables";
 
 let pool: mysql.Pool | null = null;
 
@@ -72,13 +73,25 @@ export async function closeWordpressMysqlPool(): Promise<void> {
   }
 }
 
-// List users
-export const listWpUsers = async (offset: number, limit: number) => {
-  console.log({ offset });
+// List users by primary key batch (ID-based pagination)
+export const listWpUsers = async (lastSeenId: number = 0, batchSize: number = 5) => {
   const pool = getMysqlPool();
+
+  // Ensure safe numeric values
+  const startId = Math.max(0, Number(lastSeenId) || 0);
+  const limit = Math.max(1, Number(batchSize) || 5);
+
   const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-    `SELECT * FROM \`76a_users\` ORDER BY ID ASC LIMIT ${Number(offset)}, ${Number(limit)}`,
+    `
+      SELECT *
+      FROM \`${MIGRATION_TABLE.WORDPRESS.USERS}\`
+      WHERE ID >= ?
+      ORDER BY ID ASC
+      LIMIT ${limit}
+    `,
+    [startId],
   );
+
   return rows as Record<string, unknown>[];
 };
 
