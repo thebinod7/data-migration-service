@@ -83,16 +83,20 @@ export const bulkInsertUsers = mutation({
   },
 
   handler: async (ctx, args) => {
-    for (const record of args.records) {
-      await ctx.db.insert("users", {
-        ...record,
+    const inserted = await Promise.all(
+      args.records.map(async (record) => {
+        const id = await ctx.db.insert("users", record);
+        return {
+          id,
+          email: record.email,
+          wordpressUserId: record.wordpressUserId,
+          personalAccountCreated: false,
+          signupSideEffectsCompleted: true,
+          onboardingCompleted: true,
+        };
+      }),
+    );
 
-        personalAccountCreated: false,
-        signupSideEffectsCompleted: true,
-        onboardingCompleted: true,
-      });
-    }
-
-    return { inserted: args.records.length };
+    return inserted;
   },
 });

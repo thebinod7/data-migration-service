@@ -40,18 +40,20 @@ async function runMigration(): Promise<void> {
       });
 
       console.log(`Migrating batch of ${users.length} users...`);
-
       const result = await convex.mutation(api.migrations.bulkInsertUsers, {
         records: users,
       });
 
-      console.log("RESULT==>", result);
+      if (!result || !Array.isArray(result)) {
+        console.error("Failed to insert users batch", { result });
+        continue;
+      }
 
-      // result.forEach((r: any, i: number) => {
-      //   const u = users[i];
-      //   ctx.emailToUserId.set(u.email, r.id);
-      //   ctx.wpIdToUserId.set(u.wordpressUserId, r.id);
-      // });
+      result.forEach((r: any, i: number) => {
+        const u = users[i];
+        ctx.emailToUserId.set(u.email, r.id);
+        ctx.wpIdToUserId.set(u.wordpressUserId, r.id);
+      });
 
       console.log(`✅ Inserted ${users.length} users`);
     }
