@@ -65,6 +65,7 @@ export const bulkInsertUsers = mutation({
     records: v.array(
       v.object({
         ssoUserId: v.string(),
+        wordpressUserId: v.number(),
         email: v.string(),
         firstName: v.string(),
         lastName: v.string(),
@@ -73,6 +74,8 @@ export const bulkInsertUsers = mutation({
           v.literal("admin"),
           v.literal("superadmin"),
         ),
+        onboardingCompleted: v.boolean(),
+        signupSideEffectsCompleted: v.boolean(),
         createdAt: v.number(),
         updatedAt: v.number(),
       }),
@@ -85,8 +88,8 @@ export const bulkInsertUsers = mutation({
         ...record,
 
         personalAccountCreated: false,
-        signupSideEffectsCompleted: false,
-        onboardingCompleted: false,
+        signupSideEffectsCompleted: true,
+        onboardingCompleted: true,
       });
     }
 

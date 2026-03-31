@@ -74,26 +74,37 @@ export async function closeWordpressMysqlPool(): Promise<void> {
 }
 
 // List users by primary key batch (ID-based pagination)
-export const listWpUsers = async (lastSeenId: number = 0, batchSize: number = 5) => {
+export async function* listWpUsers(
+  lastSeenId: number = 0,
+  batchSize: number = 5,
+): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 
-  // Ensure safe numeric values
-  const startId = Math.max(0, Number(lastSeenId) || 0);
+  let currentId = Math.max(0, Number(lastSeenId) || 0);
   const limit = Math.max(1, Number(batchSize) || 5);
 
-  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-    `
+  while (true) {
+    const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+      `
       SELECT *
       FROM \`${MIGRATION_TABLE.WORDPRESS.USERS}\`
-      WHERE ID >= ?
+      WHERE ID > ?
       ORDER BY ID ASC
       LIMIT ${limit}
-    `,
-    [startId],
-  );
+      `,
+      [currentId],
+    );
 
-  return rows as Record<string, unknown>[];
-};
+    if (!rows.length) break;
+
+    const batch = rows as Record<string, unknown>[];
+
+    yield batch;
+
+    // move cursor forward
+    currentId = rows[rows.length - 1].ID as number;
+  }
+}
 
 // Write a code to list tables in a mysql database
 
