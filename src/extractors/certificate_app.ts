@@ -20,7 +20,7 @@ export function getMysqlPool(): mysql.Pool {
   return pool;
 }
 
-export async function* listImpactPages(
+export async function* listBusinessImpactPages(
   lastSeenId: number = 0,
   batchSize: number = 5,
 ): AsyncGenerator<Record<string, unknown>[]> {
@@ -44,9 +44,7 @@ export async function* listImpactPages(
     const batch = rows as Record<string, unknown>[];
 
     if (batch.length === 0) break;
-
     yield batch;
-
     currentId = batch[batch.length - 1].id as number;
   }
 }
@@ -74,9 +72,7 @@ export async function* listPersonalImpactPages(
     const batch = rows as Record<string, unknown>[];
 
     if (batch.length === 0) break;
-
     yield batch;
-
     currentId = batch[batch.length - 1].id as number;
   }
 }

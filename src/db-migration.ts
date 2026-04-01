@@ -5,6 +5,7 @@ import { api } from "../convex/_generated/api";
 import { MIGRATION_TABLE } from "./config/tables";
 import {
   closeCertificateMysqlPool,
+  listBusinessImpactPages,
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
 import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
@@ -30,6 +31,7 @@ async function runMigration(): Promise<void> {
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
     await migratePersonalAccounts();
+    await migrateBusinessAccounts();
     // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
@@ -47,7 +49,54 @@ async function runMigration(): Promise<void> {
 
 runMigration();
 
-async function migrateBusinessAccounts() {}
+async function migrateBusinessAccounts() {
+  const TABLE = MIGRATION_TABLE.LARAVEL.IMPACT_PAGES;
+  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+  console.log(`🚀 Starting from pimpact.id > ${lastId}`);
+
+  for await (const batch of listBusinessImpactPages(lastId, 50)) {
+    let maxIdInBatch: number = lastId;
+
+    const records: any[] = [];
+
+    for (const p of batch) {
+      const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
+      if (!ownerId) continue;
+
+      records.push({
+        ownerId,
+        type: "business",
+        name: p.company_name || "Business Account",
+        slug:
+          p.slug || generateSlug(String(p.company_name) || `business-${p.id}`),
+        isDefault: true,
+        onboardingCompleted: true,
+        isActiveAdvisor: false,
+        createdAt: parseDateToTimestamp(String(p.created_at)),
+        updatedAt: p.updated_at
+          ? parseDateToTimestamp(String(p.updated_at))
+          : Date.now(),
+      });
+
+      maxIdInBatch = Number(p.id);
+    }
+
+    // ✅ single mutation per batch
+    if (records.length > 0) {
+      await convex.mutation(api.migrations.bulkInsertPersonalAccounts, {
+        records,
+      });
+    }
+
+    // ✅ checkpoint AFTER mutation
+    if (maxIdInBatch !== lastId) {
+      saveCheckpoint(TABLE, maxIdInBatch);
+      lastId = maxIdInBatch;
+      console.log(`📦 business_accounts → ${lastId}`);
+    }
+  }
+  console.log("✅ Business accounts migration done");
+}
 async function migratePersonalAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.PERSONAL_IMPACT_PAGES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
@@ -73,13 +122,13 @@ async function migratePersonalAccounts() {
         onboardingCompleted: true,
         isActiveAdvisor: false,
         createdAt: parseDateToTimestamp(String(p.created_at)),
-        updatedAt: Date.now(),
+        updatedAt: p.updated_at
+          ? parseDateToTimestamp(String(p.updated_at))
+          : Date.now(),
       });
 
       maxIdInBatch = Number(p.id);
     }
-
-    console.log("RECORDS[0]", records[0]);
 
     // ✅ single mutation per batch
     if (records.length > 0) {
@@ -99,32 +148,6 @@ async function migratePersonalAccounts() {
 }
 
 async function migrateFallbackAccounts() {}
-
-// async function migrateImpactAccounts() {
-//   console.log("WpIdToUserId map=>", ctx.wpIdToUserId);
-//   for await (const batch of listPersonalImpactPages(LAST_SEEN_ID, BATCH_SIZE)) {
-//     for (const impact of batch) {
-//       console.log("Impact page=>", impact);
-//       const ownerId = ctx.wpIdToUserId.get(Number(impact.user_id));
-//       console.log({ ownerId });
-//       if (!ownerId) continue; // safety check
-
-//       const account = {
-//         ownerId,
-//         type: "personal",
-//         name: impact.company,
-//         slug: generateSlug(String(impact.company)),
-//         isDefault: true,
-//         createdAt: parseDateToTimestamp(String(impact.created_at)),
-//         updatedAt: Date.now(),
-//       };
-
-//       console.log("Migrating account", account);
-
-//       // insert into Convex
-//     }
-//   }
-// }
 
 async function migrateUsersFromWordpress() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.USERS;
