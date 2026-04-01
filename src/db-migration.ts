@@ -54,11 +54,9 @@ runMigration();
 async function migrateBusinessAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.IMPACT_PAGES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
-  console.log(`🚀 Starting from pimpact.id > ${lastId}`);
 
   for await (const batch of listBusinessImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
-
     const records: any[] = [];
 
     for (const p of batch) {
@@ -83,46 +81,50 @@ async function migrateBusinessAccounts() {
       });
     }
 
-    // ✅ single mutation per batch
+    // single mutation per batch
     if (records.length > 0) {
-      const accountIds = await convex.mutation(
+      const ownerAndAccountIds: any = await convex.mutation(
         api.migrations.bulkInsertImpactAccounts,
         {
           records,
         },
       );
 
-      await refillAcountIdForUsers(records, accountIds);
+      await refillAcountIdForUsers(ownerAndAccountIds);
     }
 
-    // ✅ checkpoint AFTER mutation
+    // checkpoint AFTER mutation
     if (maxIdInBatch !== lastId) {
       saveCheckpoint(TABLE, maxIdInBatch);
       lastId = maxIdInBatch;
-      console.log(`📦 business_accounts → ${lastId}`);
     }
   }
   console.log("✅ Business accounts migration done");
 }
 
-async function refillAcountIdForUsers(records: any[], accountIds: string[]) {
-  const patches = records
-    .map((r, i) => ({ _id: r.ownerId, activeAccountId: accountIds[i] }))
-    .filter((p) => p.activeAccountId);
+async function refillAcountIdForUsers(
+  results: { ownerId: string; accountId: string }[],
+) {
+  const patches = results
+    .filter((r) => r.accountId)
+    .map((r) => ({
+      _id: r.ownerId as any,
+      activeAccountId: r.accountId,
+    }));
 
   if (patches.length > 0) {
-    await convex.mutation(api.migrations.bulkPatchUserAccountId, { patches });
+    await convex.mutation(api.migrations.bulkPatchUserAccountId, {
+      patches,
+    });
   }
 }
 
 async function migratePersonalAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.PERSONAL_IMPACT_PAGES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
-  console.log(`🚀 Starting from pimpact.id > ${lastId}`);
 
   for await (const batch of listPersonalImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
-
     const records: any[] = [];
 
     for (const p of batch) {
@@ -132,7 +134,6 @@ async function migratePersonalAccounts() {
       if (!ownerId) continue;
 
       const name = `${p.first_name || ""} ${p.last_name || ""}`.trim();
-
       records.push({
         ownerId,
         type: "personal",
@@ -149,21 +150,20 @@ async function migratePersonalAccounts() {
     }
 
     if (records.length > 0) {
-      const accountIds = await convex.mutation(
+      const ownerAndAccountIds: any = await convex.mutation(
         api.migrations.bulkInsertImpactAccounts,
         {
           records,
         },
       );
 
-      await refillAcountIdForUsers(records, accountIds);
+      await refillAcountIdForUsers(ownerAndAccountIds);
     }
 
     // checkpoint AFTER mutation
     if (maxIdInBatch !== lastId) {
       saveCheckpoint(TABLE, maxIdInBatch);
       lastId = maxIdInBatch;
-      console.log(`📦 personal_accounts → ${lastId}`);
     }
   }
   console.log("✅ Personal accounts migration done");
@@ -234,11 +234,10 @@ async function migrateUsersFromWordpress() {
       ctx.wpIdToUserId.set(u.wordpressUserId, r.id);
     });
 
-    // ✅ checkpoint AFTER mutation
+    // checkpoint AFTER mutation
     if (maxIdInBatch !== lastId) {
       saveCheckpoint(TABLE, maxIdInBatch);
       lastId = maxIdInBatch;
-      console.log(`📦 personal_accounts → ${lastId}`);
     }
 
     console.log(`✅ Inserted ${users.length} users`);
