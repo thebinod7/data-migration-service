@@ -1,6 +1,5 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
-import { ID_CAP } from "../constants/contants";
 import { MIGRATION_TABLE } from "../config/tables";
 
 let pool: mysql.Pool | null = null;
@@ -34,7 +33,7 @@ export async function* listImpactPages(
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(
       `
       SELECT *
-      FROM impact_pages
+      FROM ${MIGRATION_TABLE.LARAVEL.IMPACT_PAGES}
       WHERE id > ?
       ORDER BY id ASC
       LIMIT ${limit}
@@ -60,19 +59,16 @@ export async function* listPersonalImpactPages(
   let currentId = Math.max(0, Number(lastSeenId) || 0);
   const limit = Math.max(1, Number(batchSize) || 5);
 
-  const id_cap = 100;
-
   while (true) {
-    if (currentId >= id_cap) break;
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(
       `
       SELECT *
       FROM ${MIGRATION_TABLE.LARAVEL.PERSONAL_IMPACT_PAGES}
-      WHERE id > ? AND id <= ?
+      WHERE id > ?
       ORDER BY id ASC
       LIMIT ${limit}
       `,
-      [currentId, id_cap],
+      [currentId],
     );
 
     const batch = rows as Record<string, unknown>[];

@@ -1,5 +1,29 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+
+export const bulkInsertPersonalAccounts = mutation({
+  args: {
+    records: v.array(
+      v.object({
+        ownerId: v.string(),
+        type: v.string(),
+        name: v.string(),
+        slug: v.string(),
+        isDefault: v.boolean(),
+        onboardingCompleted: v.boolean(),
+        isActiveAdvisor: v.boolean(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+      }),
+    ),
+  },
+
+  handler: async (ctx, args) => {
+    for (const record of args.records) {
+      await ctx.db.insert("accounts", record);
+    }
+  },
+});
 
 export const bulkInsertAccounts = mutation({
   args: {
@@ -100,3 +124,5 @@ export const bulkInsertUsers = mutation({
     return inserted;
   },
 });
+
+// ============QUERIES FOR CHECKPOINTING ============

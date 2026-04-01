@@ -2,10 +2,13 @@ import * as fs from "fs";
 import * as path from "path";
 import { logger } from "./logger";
 
-const DEFAULT_CHECKPOINT_PATH = path.resolve(process.cwd(), ".migration-checkpoint.json");
+const DEFAULT_CHECKPOINT_PATH = path.resolve(
+  process.cwd(),
+  ".migration-checkpoint.json",
+);
 
 export type CheckpointState = {
-  /** Per convexTable: last primary key value successfully processed (inclusive). */
+  /** Per table: last primary key value successfully processed (inclusive). */
   tables: Record<string, { lastPrimaryKey: number | string }>;
 };
 
@@ -26,8 +29,12 @@ export function setCheckpointDisabled(value: boolean) {
 
 /** Initialize from env: SKIP_CHECKPOINT=1 or NO_CHECKPOINT=1 to disable. */
 export function initCheckpointFromEnv() {
-  if (process.env.SKIP_CHECKPOINT === "true" || process.env.SKIP_CHECKPOINT === "1" ||
-      process.env.NO_CHECKPOINT === "true" || process.env.NO_CHECKPOINT === "1") {
+  if (
+    process.env.SKIP_CHECKPOINT === "true" ||
+    process.env.SKIP_CHECKPOINT === "1" ||
+    process.env.NO_CHECKPOINT === "true" ||
+    process.env.NO_CHECKPOINT === "1"
+  ) {
     disabled = true;
     logger.info("Checkpoint disabled via env");
   }
@@ -40,7 +47,11 @@ export function readCheckpoint(): CheckpointState | null {
     const data = JSON.parse(raw) as CheckpointState;
     if (data && typeof data.tables === "object") return data;
   } catch (e: any) {
-    if (e?.code !== "ENOENT") logger.warn("Failed to read checkpoint", { path: checkpointPath, error: e?.message });
+    if (e?.code !== "ENOENT")
+      logger.warn("Failed to read checkpoint", {
+        path: checkpointPath,
+        error: e?.message,
+      });
   }
   return null;
 }
@@ -50,21 +61,27 @@ export function writeCheckpoint(state: CheckpointState): void {
   try {
     fs.writeFileSync(checkpointPath, JSON.stringify(state, null, 2), "utf-8");
   } catch (e: any) {
-    logger.warn("Failed to write checkpoint", { path: checkpointPath, error: e?.message });
+    logger.warn("Failed to write checkpoint", {
+      path: checkpointPath,
+      error: e?.message,
+    });
   }
 }
 
 /** Get last primary key for a table if any. */
-export function getLastPrimaryKey(convexTable: string): number | string | null {
+export function getLastPrimaryKey(table: string): number | string | null {
   const state = readCheckpoint();
-  if (!state?.tables[convexTable]) return null;
-  return state.tables[convexTable].lastPrimaryKey;
+  if (!state?.tables[table]) return null;
+  return state.tables[table].lastPrimaryKey;
 }
 
-/** Update checkpoint after successfully processing a batch for convexTable. */
-export function saveCheckpoint(convexTable: string, lastPrimaryKey: number | string): void {
+/** Update checkpoint after successfully processing a batch for table. */
+export function saveCheckpoint(
+  table: string,
+  lastPrimaryKey: number | string,
+): void {
   const state = readCheckpoint() ?? { tables: {} };
-  state.tables[convexTable] = { lastPrimaryKey };
+  state.tables[table] = { lastPrimaryKey };
   writeCheckpoint(state);
 }
 
@@ -77,6 +94,9 @@ export function clearCheckpoint(): void {
       logger.info("Checkpoint cleared", { path: checkpointPath });
     }
   } catch (e: any) {
-    logger.warn("Failed to clear checkpoint", { path: checkpointPath, error: e?.message });
+    logger.warn("Failed to clear checkpoint", {
+      path: checkpointPath,
+      error: e?.message,
+    });
   }
 }
