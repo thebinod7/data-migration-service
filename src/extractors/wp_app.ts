@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
 import { MIGRATION_TABLE } from "../config/tables";
+import { ID_CAP } from "../constants/contants";
 
 let pool: mysql.Pool | null = null;
 
@@ -84,15 +85,16 @@ export async function* listWpUsers(
   const limit = Math.max(1, Number(batchSize) || 5);
 
   while (true) {
+    if (currentId >= ID_CAP) break;
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(
       `
       SELECT *
       FROM \`${MIGRATION_TABLE.WORDPRESS.USERS}\`
-      WHERE ID > ?
+      WHERE ID > ? AND ID <= ?
       ORDER BY ID ASC
       LIMIT ${limit}
       `,
-      [currentId],
+      [currentId, ID_CAP],
     );
 
     if (!rows.length) break;

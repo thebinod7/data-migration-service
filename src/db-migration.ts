@@ -7,7 +7,11 @@ import {
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
 import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
-import { splitFullName } from "./utils/utils";
+import {
+  generateSlug,
+  parseDateToTimestamp,
+  splitFullName,
+} from "./utils/utils";
 
 const BATCH_SIZE = 2;
 const LAST_SEEN_ID = 0;
@@ -20,13 +24,13 @@ const ctx = {
   userToAccounts: new Map<string, string[]>(),
 };
 
+// TODO: Remove ID_CAP
 async function runMigration(): Promise<void> {
   try {
-    // ---------------- USERS ----------------
-    // await migrateUsersFromWordpress();
-
-    // ---------------- ACCOUNTS ----------------
+    // ---------------- First batch ----------------
+    await migrateUsersFromWordpress();
     await migrateImpactAccounts();
+    // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
   } catch (err: any) {
@@ -44,12 +48,27 @@ async function runMigration(): Promise<void> {
 runMigration();
 
 async function migrateImpactAccounts() {
-  const personalImpacts = listPersonalImpactPages(LAST_SEEN_ID, BATCH_SIZE);
-  const businessImpacts = listPersonalImpactPages(LAST_SEEN_ID, BATCH_SIZE);
+  for await (const batch of listPersonalImpactPages(LAST_SEEN_ID, BATCH_SIZE)) {
+    for (const impact of batch) {
+      console.log("Impact page=>", impact);
+      const ownerId = ctx.wpIdToUserId.get(Number(impact.user_id));
+      console.log({ ownerId });
+      if (!ownerId) continue; // safety check
 
-  // Prepare data for peronal impacts
-  for await (const batch of personalImpacts) {
-    console.log("Batch of personal impacts", batch);
+      const account = {
+        ownerId,
+        type: "personal",
+        name: impact.company,
+        slug: generateSlug(String(impact.company)),
+        isDefault: true,
+        createdAt: parseDateToTimestamp(String(impact.created_at)),
+        updatedAt: Date.now(),
+      };
+
+      console.log("Migrating account", account);
+
+      // insert into Convex
+    }
   }
 }
 
@@ -73,7 +92,6 @@ async function migrateUsersFromWordpress() {
       };
     });
 
-    console.log(`Migrating batch of ${users.length} users...`);
     const result = await convex.mutation(api.migrations.bulkInsertUsers, {
       records: users,
     });

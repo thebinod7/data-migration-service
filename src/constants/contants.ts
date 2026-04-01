@@ -3,3 +3,5 @@ export const DB_SOURCES = {
   CERTIFICATE_APP: "certificate_app",
   WORDPRESS_APP: "wordpress_app",
 };
+
+export const ID_CAP = 15;
