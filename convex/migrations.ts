@@ -1,7 +1,25 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation } from "./_generated/server";
 
-export const bulkInsertPersonalAccounts = mutation({
+export const bulkPatchUserAccountId = mutation({
+  args: {
+    patches: v.array(
+      v.object({
+        _id: v.id("users"),
+        activeAccountId: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, { patches }) => {
+    await Promise.all(
+      patches.map(({ _id, activeAccountId }) =>
+        ctx.db.patch(_id, { activeAccountId }),
+      ),
+    );
+  },
+});
+
+export const bulkInsertImpactAccounts = mutation({
   args: {
     records: v.array(
       v.object({
@@ -18,10 +36,10 @@ export const bulkInsertPersonalAccounts = mutation({
     ),
   },
 
-  handler: async (ctx, args) => {
-    for (const record of args.records) {
-      await ctx.db.insert("accounts", record);
-    }
+  handler: async (ctx, { records }) => {
+    return await Promise.all(
+      records.map((r) => ctx.db.insert("accounts", r)), // insert() returns the new _id
+    );
   },
 });
 
@@ -114,9 +132,6 @@ export const bulkInsertUsers = mutation({
           id,
           email: record.email,
           wordpressUserId: record.wordpressUserId,
-          personalAccountCreated: false,
-          signupSideEffectsCompleted: true,
-          onboardingCompleted: true,
         };
       }),
     );

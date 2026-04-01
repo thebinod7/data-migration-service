@@ -1,1 +1,13 @@
-{}
+{
+  "tables": {
+    "76a_users": {
+      "lastPrimaryKey": 100
+    },
+    "personal_impact_pages": {
+      "lastPrimaryKey": 286
+    },
+    "impact_pages": {
+      "lastPrimaryKey": 726
+    }
+  }
+}

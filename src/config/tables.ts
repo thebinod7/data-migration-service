@@ -5,5 +5,6 @@ export const MIGRATION_TABLE = {
   LARAVEL: {
     IMPACT_PAGES: "impact_pages",
     PERSONAL_IMPACT_PAGES: "personal_impact_pages",
+    CAMPAIGN_RECIPIENTS: "campaign_recipients",
   },
 };

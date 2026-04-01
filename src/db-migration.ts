@@ -6,6 +6,7 @@ import { MIGRATION_TABLE } from "./config/tables";
 import {
   closeCertificateMysqlPool,
   listBusinessImpactPages,
+  listCampaignRecipients,
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
 import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
@@ -32,6 +33,7 @@ async function runMigration(): Promise<void> {
     await migrateUsersFromWordpress();
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
+    // await migrateFallbackAccounts();
     // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
@@ -60,6 +62,8 @@ async function migrateBusinessAccounts() {
     const records: any[] = [];
 
     for (const p of batch) {
+      maxIdInBatch = Number(p.id);
+
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
       if (!ownerId) continue;
 
@@ -77,15 +81,18 @@ async function migrateBusinessAccounts() {
           ? parseDateToTimestamp(String(p.updated_at))
           : Date.now(),
       });
-
-      maxIdInBatch = Number(p.id);
     }
 
     // ✅ single mutation per batch
     if (records.length > 0) {
-      await convex.mutation(api.migrations.bulkInsertPersonalAccounts, {
-        records,
-      });
+      const accountIds = await convex.mutation(
+        api.migrations.bulkInsertImpactAccounts,
+        {
+          records,
+        },
+      );
+
+      await refillAcountIdForUsers(records, accountIds);
     }
 
     // ✅ checkpoint AFTER mutation
@@ -97,6 +104,17 @@ async function migrateBusinessAccounts() {
   }
   console.log("✅ Business accounts migration done");
 }
+
+async function refillAcountIdForUsers(records: any[], accountIds: string[]) {
+  const patches = records
+    .map((r, i) => ({ _id: r.ownerId, activeAccountId: accountIds[i] }))
+    .filter((p) => p.activeAccountId);
+
+  if (patches.length > 0) {
+    await convex.mutation(api.migrations.bulkPatchUserAccountId, { patches });
+  }
+}
+
 async function migratePersonalAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.PERSONAL_IMPACT_PAGES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
@@ -108,6 +126,8 @@ async function migratePersonalAccounts() {
     const records: any[] = [];
 
     for (const p of batch) {
+      maxIdInBatch = Number(p.id);
+
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
       if (!ownerId) continue;
 
@@ -126,18 +146,20 @@ async function migratePersonalAccounts() {
           ? parseDateToTimestamp(String(p.updated_at))
           : Date.now(),
       });
-
-      maxIdInBatch = Number(p.id);
     }
 
-    // ✅ single mutation per batch
     if (records.length > 0) {
-      await convex.mutation(api.migrations.bulkInsertPersonalAccounts, {
-        records,
-      });
+      const accountIds = await convex.mutation(
+        api.migrations.bulkInsertImpactAccounts,
+        {
+          records,
+        },
+      );
+
+      await refillAcountIdForUsers(records, accountIds);
     }
 
-    // ✅ checkpoint AFTER mutation
+    // checkpoint AFTER mutation
     if (maxIdInBatch !== lastId) {
       saveCheckpoint(TABLE, maxIdInBatch);
       lastId = maxIdInBatch;
@@ -147,7 +169,29 @@ async function migratePersonalAccounts() {
   console.log("✅ Personal accounts migration done");
 }
 
-async function migrateFallbackAccounts() {}
+async function migrateFallbackAccounts() {
+  const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
+  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+  const userCampaignTypes = new Map<number, Set<"business" | "personal">>();
+
+  for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
+    for (const c of batch) {
+      console.log("Campaign:", c);
+      const userId = Number(c.user_id);
+      const type: "business" | "personal" =
+        c.campaign_type === "business"
+          ? "business"
+          : c.campaign_type === "personal"
+            ? "personal"
+            : "personal"; // default fallback
+
+      if (!userCampaignTypes.has(userId)) {
+        userCampaignTypes.set(userId, new Set());
+      }
+      userCampaignTypes.get(userId)!.add(type);
+    }
+  }
+}
 
 async function migrateUsersFromWordpress() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.USERS;
