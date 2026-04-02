@@ -20,6 +20,103 @@ export function getMysqlPool(): mysql.Pool {
   return pool;
 }
 
+/** One campaign_recipients row plus related campaign and meta rows (for impact record migration). */
+export type CampaignRecipientSourceRow = {
+  recipient: Record<string, unknown>;
+  campaign: Record<string, unknown> | null;
+  metas: Record<string, unknown>[];
+};
+
+export async function fetchCampaignsByIds(
+  ids: number[],
+): Promise<Map<number, Record<string, unknown>>> {
+  const map = new Map<number, Record<string, unknown>>();
+  if (ids.length === 0) return map;
+
+  const pool = getMysqlPool();
+  const placeholders = ids.map(() => "?").join(",");
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `
+    SELECT *
+    FROM \`${MIGRATION_TABLE.LARAVEL.CAMPAIGNS}\`
+    WHERE id IN (${placeholders})
+    `,
+    ids,
+  );
+
+  for (const row of rows as Record<string, unknown>[]) {
+    map.set(Number(row.id), row);
+  }
+  return map;
+}
+
+/** Meta rows keyed by campaign_recipients.id (FK column on metas table: campaign_recipient_id). */
+export async function fetchCampaignRecipientMetasByRecipientIds(
+  recipientIds: number[],
+): Promise<Map<number, Record<string, unknown>[]>> {
+  const result = new Map<number, Record<string, unknown>[]>();
+
+  // Remove invalid + duplicate IDs
+  const ids = [...new Set(recipientIds)].filter((id) => Number.isFinite(id));
+
+  if (ids.length === 0) return result;
+
+  // Initialize map with empty arrays
+  ids.forEach((id) => result.set(id, []));
+
+  const pool = getMysqlPool();
+  const placeholders = ids.map(() => "?").join(",");
+
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `
+    SELECT *
+    FROM \`${MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENT_METAS}\`
+    WHERE campaign_recipient_id IN (${placeholders})
+    `,
+    ids,
+  );
+
+  // Group rows by campaign_recipient_id
+  for (const row of rows as Record<string, unknown>[]) {
+    const id = Number(row.campaign_recipient_id);
+
+    // Since we pre-initialized, this will always exist
+    result.get(id)!.push(row);
+  }
+
+  return result;
+}
+
+export async function enrichCampaignRecipientBatch(
+  batch: Record<string, unknown>[],
+): Promise<CampaignRecipientSourceRow[]> {
+  const campaignIds = [
+    ...new Set(
+      batch
+        .map((r) => Number(r.campaign_id))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    ),
+  ];
+  const recipientIds = batch.map((r) => Number(r.id));
+
+  const [campaignsById, metasByRecipientId] = await Promise.all([
+    fetchCampaignsByIds(campaignIds),
+    fetchCampaignRecipientMetasByRecipientIds(recipientIds),
+  ]);
+
+  return batch.map((recipient) => {
+    const cid = Number(recipient.campaign_id);
+    return {
+      recipient,
+      campaign:
+        Number.isFinite(cid) && cid > 0
+          ? (campaignsById.get(cid) ?? null)
+          : null,
+      metas: metasByRecipientId.get(Number(recipient.id)) ?? [],
+    };
+  });
+}
+
 export async function* listCampaignRecipients(
   lastSeenId: number = 0,
   batchSize: number = 5,

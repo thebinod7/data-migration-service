@@ -5,12 +5,14 @@ import { api } from "../convex/_generated/api";
 import { MIGRATION_TABLE } from "./config/tables";
 import {
   closeCertificateMysqlPool,
+  enrichCampaignRecipientBatch,
   listBusinessImpactPages,
   listCampaignRecipients,
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
 import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
 import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
+import { mapEnrichedRecipientsToImpactRecords } from "./utils/impactRecordMapper";
 import {
   mapBusinessImpactPageToProfile,
   mapPersonalImpactPageToProfile,
@@ -36,7 +38,7 @@ async function runMigration(): Promise<void> {
     await migrateUsersFromWordpress();
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
-    // await migrateFallbackAccounts();
+    await migrateImpactRecords();
     // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
@@ -53,6 +55,52 @@ async function runMigration(): Promise<void> {
 }
 
 runMigration();
+
+function resolveImpactRecordAccountId(input: {
+  recipient: Record<string, unknown>;
+  campaign: Record<string, unknown> | null;
+}): string | null {
+  const { recipient } = input;
+  const wpUserId = Number(recipient.user_id);
+  if (Number.isFinite(wpUserId) && wpUserId > 0) {
+    const userId = ctx.wpIdToUserId.get(wpUserId);
+    if (userId) {
+      const accounts = ctx.userToAccounts.get(userId);
+      if (accounts?.length) return accounts[0]!;
+    }
+  }
+  const email = String(recipient.email ?? "")
+    .trim()
+    .toLowerCase();
+  if (email) {
+    const userId = ctx.emailToUserId.get(email);
+    if (userId) {
+      const accounts = ctx.userToAccounts.get(userId);
+      if (accounts?.length) return accounts[0]!;
+    }
+  }
+  return null;
+}
+
+async function migrateImpactRecords() {
+  const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
+  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+
+  for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
+    const enriched = await enrichCampaignRecipientBatch(batch);
+    const records = mapEnrichedRecipientsToImpactRecords(enriched, {
+      emailToUserId: ctx.emailToUserId,
+      resolveAccountId: resolveImpactRecordAccountId,
+    });
+
+    // Next step: convex.mutation(bulkInsertImpactRecords, { records }), saveCheckpoint.
+    console.log(
+      `Impact records batch: ${records.length} mapped / ${enriched.length} enriched (cursor after id ${batch[batch.length - 1]?.id})`,
+    );
+  }
+
+  console.log("✅ Impact records mapping pass done");
+}
 
 async function migrateBusinessAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.IMPACT_PAGES;
