@@ -40,7 +40,13 @@ export const bulkInsertImpactAccounts = mutation({
     return await Promise.all(
       records.map(async (r) => {
         const accountId = await ctx.db.insert("accounts", r);
-        return { ownerId: r.ownerId, accountId }; // ✅ explicitly paired
+        await ctx.db.insert("accountMemberships", {
+          accountId,
+          userId: r.ownerId,
+          role: "owner",
+          createdAt: r.createdAt,
+        });
+        return { ownerId: r.ownerId, accountId };
       }),
     );
   },
