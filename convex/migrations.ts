@@ -179,4 +179,31 @@ export const bulkInsertUsers = mutation({
   },
 });
 
-// ============QUERIES FOR CHECKPOINTING ============
+const impactRecordValidator = v.object({
+  impactId: v.string(),
+  accountId: v.string(),
+  impactAmount: v.number(),
+  impactRegion: v.string(),
+  programId: v.string(),
+  templateId: v.string(),
+  source: v.string(),
+  state: v.string(),
+  attributionStatus: v.union(v.literal("assigned"), v.literal("unclaimed")),
+  certificateNameOverride: v.string(),
+  orderId: v.string(),
+  originalEmail: v.string(),
+  purchaserEmail: v.string(),
+  createdAt: v.number(),
+});
+
+export const bulkInsertImpactRecords = mutation({
+  args: {
+    records: v.array(impactRecordValidator),
+  },
+  handler: async (ctx, { records }) => {
+    await Promise.all(
+      records.map((record) => ctx.db.insert("impactRecords", record)),
+    );
+  },
+});
+

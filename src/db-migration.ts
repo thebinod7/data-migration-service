@@ -87,21 +87,39 @@ async function migrateImpactRecords() {
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
   for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
+    let maxIdInBatch: number = lastId;
+
+    for (const r of batch) {
+      maxIdInBatch = Number(r.id);
+    }
+
     const enriched = await enrichCampaignRecipientBatch(batch);
     const records = mapEnrichedRecipientsToImpactRecords(enriched, {
       emailToUserId: ctx.emailToUserId,
       resolveAccountId: resolveImpactRecordAccountId,
     });
 
-    console.log("records==>", records[0]);
+    if (records.length > 0) {
+      await convex.mutation(api.migrations.bulkInsertImpactRecords, {
+        records,
+      });
+    }
 
-    // Next step: convex.mutation(bulkInsertImpactRecords, { records }), saveCheckpoint.
+    const insertedIntoConvex = records.length;
+    const campaignRecipientsInBatch = enriched.length;
+    const skippedThisBatch = campaignRecipientsInBatch - insertedIntoConvex;
     console.log(
-      `Impact records batch: ${records.length} mapped / ${enriched.length} enriched (cursor after id ${batch[batch.length - 1]?.id})`,
+      `[Impact records] Inserted ${insertedIntoConvex} into Convex (${campaignRecipientsInBatch} Laravel rows in batch, ${skippedThisBatch} skipped).`,
     );
+
+    // checkpoint AFTER mutation (same pattern as account migrations)
+    if (maxIdInBatch !== lastId) {
+      saveCheckpoint(TABLE, maxIdInBatch);
+      lastId = maxIdInBatch;
+    }
   }
 
-  console.log("✅ Impact records mapping pass done");
+  console.log("✅ Impact records migration done");
 }
 
 async function migrateBusinessAccounts() {
