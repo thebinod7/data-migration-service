@@ -19,6 +19,16 @@ export const bulkPatchUserAccountId = mutation({
   },
 });
 
+const impactAccountProfileValidator = v.object({
+  visibility: v.union(v.literal("private"), v.literal("public")),
+  displayUnit: v.union(v.literal("Kg"), v.literal("Lbs"), v.literal("Bottles")),
+  sectionOrder: v.array(v.string()),
+  ctaUrl: v.optional(v.string()),
+  inviteUrl: v.optional(v.string()),
+  wordmarkId: v.optional(v.string()),
+  logoId: v.optional(v.string()),
+});
+
 export const bulkInsertImpactAccounts = mutation({
   args: {
     records: v.array(
@@ -32,6 +42,7 @@ export const bulkInsertImpactAccounts = mutation({
         isActiveAdvisor: v.boolean(),
         createdAt: v.number(),
         updatedAt: v.number(),
+        profile: v.optional(impactAccountProfileValidator),
       }),
     ),
   },
@@ -39,13 +50,22 @@ export const bulkInsertImpactAccounts = mutation({
   handler: async (ctx, { records }) => {
     return await Promise.all(
       records.map(async (r) => {
-        const accountId = await ctx.db.insert("accounts", r);
+        const { profile, ...accountFields } = r;
+        const accountId = await ctx.db.insert("accounts", accountFields);
         await ctx.db.insert("accountMemberships", {
           accountId,
           userId: r.ownerId,
           role: "owner",
           createdAt: r.createdAt,
         });
+        if (profile) {
+          await ctx.db.insert("accountProfiles", {
+            accountId,
+            ...profile,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+          });
+        }
         return { ownerId: r.ownerId, accountId };
       }),
     );

@@ -12,13 +12,16 @@ import {
 import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
 import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
 import {
+  mapBusinessImpactPageToProfile,
+  mapPersonalImpactPageToProfile,
+} from "./utils/impactPageProfileMappers";
+import {
   generateSlug,
   parseDateToTimestamp,
   splitFullName,
 } from "./utils/utils";
 
 const BATCH_SIZE = 50;
-
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 const ctx = {
@@ -78,6 +81,7 @@ async function migrateBusinessAccounts() {
         updatedAt: p.updated_at
           ? parseDateToTimestamp(String(p.updated_at))
           : Date.now(),
+        profile: mapBusinessImpactPageToProfile(p as Record<string, unknown>),
       });
     }
 
@@ -146,6 +150,7 @@ async function migratePersonalAccounts() {
         updatedAt: p.updated_at
           ? parseDateToTimestamp(String(p.updated_at))
           : Date.now(),
+        profile: mapPersonalImpactPageToProfile(p as Record<string, unknown>),
       });
     }
 
