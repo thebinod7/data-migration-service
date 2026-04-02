@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 
+/** Matches main app `profileSections` table (see migration.md §5). */
+const PROFILE_SECTIONS_TABLE = "profileSections" as const;
+const HARDCODED_PROFILE_SECTION_CONFIG: Record<string, never> = {};
+
 export const bulkPatchUserAccountId = mutation({
   args: {
     patches: v.array(
@@ -66,6 +70,12 @@ export const bulkInsertImpactAccounts = mutation({
             updatedAt: r.updatedAt,
           });
         }
+        await ctx.db.insert(PROFILE_SECTIONS_TABLE, {
+          accountId,
+          config: HARDCODED_PROFILE_SECTION_CONFIG,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        });
         return { ownerId: r.ownerId, accountId };
       }),
     );
