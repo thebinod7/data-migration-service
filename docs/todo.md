@@ -5,3 +5,4 @@
  - handle fallback for personal/business account empty
  - ssoId map for users
  - fix build sources for impactRecords migration
+ - impactRegion on impact records migration

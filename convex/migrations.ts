@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, type MutationCtx } from "./_generated/server";
 
 /** Matches main app `profileSections` table (see migration.md §5). */
 const PROFILE_SECTIONS_TABLE = "profileSections" as const;
@@ -207,3 +207,46 @@ export const bulkInsertImpactRecords = mutation({
   },
 });
 
+const trialRecordValidator = v.object({
+  accountId: v.string(),
+  type: v.string(),
+  startDate: v.number(),
+  endDate: v.number(),
+  source: v.string(),
+  status: v.union(v.literal("active"), v.literal("expired")),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
+export const bulkInsertTrials = mutation({
+  args: {
+    records: v.array(trialRecordValidator),
+  },
+  handler: async (ctx, { records }) => {
+    await Promise.all(
+      records.map((record) => ctx.db.insert("trials", record)),
+    );
+  },
+});
+
+
+async function deleteAllInTable(ctx: MutationCtx, table: string) {
+  for (; ;) {
+    const batch = await ctx.db.query(table).take(256);
+    if (batch.length === 0) return;
+    await Promise.all(batch.map((doc) => ctx.db.delete(doc._id)));
+  }
+}
+
+export const wipeAllData = mutation({
+  handler: async (ctx) => {
+    // Children / dependents first (migration also writes memberships, profiles, sections per account).
+    await deleteAllInTable(ctx, "impactRecords");
+    await deleteAllInTable(ctx, "trials");
+    await deleteAllInTable(ctx, PROFILE_SECTIONS_TABLE);
+    await deleteAllInTable(ctx, "accountProfiles");
+    await deleteAllInTable(ctx, "accountMemberships");
+    await deleteAllInTable(ctx, "accounts");
+    await deleteAllInTable(ctx, "users");
+  },
+});

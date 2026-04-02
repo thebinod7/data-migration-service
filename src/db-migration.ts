@@ -8,6 +8,7 @@ import {
   enrichCampaignRecipientBatch,
   listBusinessImpactPages,
   listCampaignRecipients,
+  listImpactTrialDates,
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
 import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
@@ -34,10 +35,14 @@ const ctx = {
 
 async function runMigration(): Promise<void> {
   try {
+    // Wipe all convex data before starting the migration
+    await convex.mutation(api.migrations.wipeAllData);
+    console.log("=====Convex data wiped=====");
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
+    await migrateTrials();
     await migrateImpactRecords();
     // ---------------- End of first batch ----------------
 
@@ -80,6 +85,81 @@ function resolveImpactRecordAccountId(input: {
     }
   }
   return null;
+}
+
+async function migrateTrials() {
+  const TABLE = MIGRATION_TABLE.LARAVEL.IMPACT_TRIAL_DATES;
+  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+  // Only works if user has activeAccountId set in DB
+
+  for await (const batch of listImpactTrialDates(lastId, BATCH_SIZE)) {
+    let maxIdInBatch: number = lastId;
+    const records: {
+      accountId: string;
+      type: string;
+      startDate: number;
+      endDate: number;
+      source: string;
+      status: "active" | "expired";
+      createdAt: number;
+      updatedAt: number;
+    }[] = [];
+
+    for (const row of batch) {
+      const now = Date.now();
+      maxIdInBatch = Number(row.id);
+
+      const wpUserId = Number(row.user_id);
+      if (!Number.isFinite(wpUserId) || wpUserId <= 0) continue;
+      const convexUserId = ctx.wpIdToUserId.get(wpUserId);
+      if (!convexUserId) continue;
+      const accounts = ctx.userToAccounts.get(convexUserId);
+      const accountId = accounts?.[0] ?? null;
+      if (!accountId) continue;
+
+      const startRaw = row.start_trial;
+      const endRaw = row.end_trial;
+      if (startRaw == null || endRaw == null) continue;
+
+      const startDate = parseDateToTimestamp(String(startRaw));
+      const endDate = parseDateToTimestamp(String(endRaw));
+      if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) continue;
+
+      const createdAtRaw = row.created_at;
+      const createdAt =
+        createdAtRaw != null
+          ? parseDateToTimestamp(String(createdAtRaw))
+          : startDate;
+      const createdAtFinal = Number.isFinite(createdAt) ? createdAt : startDate;
+
+      records.push({
+        accountId,
+        type: 'professional_impact_page',
+        startDate,
+        endDate,
+        source: "signup",
+        status: endDate > now ? "active" : "expired",
+        createdAt: createdAtFinal,
+        updatedAt: row.updated_at ? parseDateToTimestamp(String(row.updated_at)) : now,
+      });
+    }
+
+    if (records.length > 0) {
+      await convex.mutation(api.migrations.bulkInsertTrials, { records });
+    }
+
+    const skippedThisBatch = batch.length - records.length;
+    console.log(
+      `[Trials] Inserted ${records.length} into Convex, ${skippedThisBatch} skipped.`,
+    );
+
+    if (maxIdInBatch !== lastId) {
+      saveCheckpoint(TABLE, maxIdInBatch);
+      lastId = maxIdInBatch;
+    }
+  }
+
+  console.log("✅ Trials migration done");
 }
 
 async function migrateImpactRecords() {
@@ -184,6 +264,7 @@ async function refillAcountIdForUsers(
     if (!accountId) continue;
     // Get or initialize account list for this user
     let userAccounts = ctx.userToAccounts.get(ownerId);
+    console.log("FOUND==>", userAccounts)
     if (!userAccounts) {
       userAccounts = [];
       ctx.userToAccounts.set(ownerId, userAccounts);

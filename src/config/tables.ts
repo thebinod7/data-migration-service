@@ -8,5 +8,6 @@ export const MIGRATION_TABLE = {
     CAMPAIGN_RECIPIENTS: "campaign_recipients",
     CAMPAIGN_RECIPIENT_METAS: "campaign_recipient_metas",
     CAMPAIGNS: "campaigns",
+    IMPACT_TRIAL_DATES: "impact_trial_dates",
   },
 };
