@@ -93,6 +93,8 @@ async function migrateImpactRecords() {
       resolveAccountId: resolveImpactRecordAccountId,
     });
 
+    console.log("records==>", records[0]);
+
     // Next step: convex.mutation(bulkInsertImpactRecords, { records }), saveCheckpoint.
     console.log(
       `Impact records batch: ${records.length} mapped / ${enriched.length} enriched (cursor after id ${batch[batch.length - 1]?.id})`,
@@ -157,6 +159,23 @@ async function migrateBusinessAccounts() {
 async function refillAcountIdForUsers(
   results: { ownerId: string; accountId: string }[],
 ) {
+  // map accountId to users
+  for (const result of results) {
+    const { ownerId, accountId } = result;
+    // Skip if no account
+    if (!accountId) continue;
+    // Get or initialize account list for this user
+    let userAccounts = ctx.userToAccounts.get(ownerId);
+    if (!userAccounts) {
+      userAccounts = [];
+      ctx.userToAccounts.set(ownerId, userAccounts);
+    }
+    // Add account if not already present
+    if (!userAccounts.includes(accountId)) {
+      userAccounts.push(accountId);
+    }
+  }
+
   const patches = results
     .filter((r) => r.accountId)
     .map((r) => ({
@@ -222,29 +241,6 @@ async function migratePersonalAccounts() {
   console.log("✅ Personal accounts migration done");
 }
 
-async function migrateFallbackAccounts() {
-  const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
-  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
-  const userCampaignTypes = new Map<number, Set<"business" | "personal">>();
-
-  for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
-    for (const c of batch) {
-      console.log("Campaign:", c);
-      const userId = Number(c.user_id);
-      const type: "business" | "personal" =
-        c.campaign_type === "business"
-          ? "business"
-          : c.campaign_type === "personal"
-            ? "personal"
-            : "personal"; // default fallback
-
-      if (!userCampaignTypes.has(userId)) {
-        userCampaignTypes.set(userId, new Set());
-      }
-      userCampaignTypes.get(userId)!.add(type);
-    }
-  }
-}
 
 async function migrateUsersFromWordpress() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.USERS;

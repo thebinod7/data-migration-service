@@ -176,7 +176,7 @@ export function mapEnrichedRecipientsToImpactRecords(
       state: String(recipient.status ?? ""),
       attributionStatus,
       certificateNameOverride: String(recipient.name ?? ""),
-      orderId: String(campaign?.order_id ?? ""),
+      orderId: String(recipient.order_id ?? ""),
       originalEmail: String(recipient.origin_email ?? ""),
       purchaserEmail: String(recipient.email ?? ""),
       createdAt,
