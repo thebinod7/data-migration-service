@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto";
 
 import type { CampaignRecipientSourceRow } from "../extractors/certificate_app";
+import {
+  contributionKindFromCampaignTypeId,
+  type ContributionKind,
+} from "./campaignContributionKind";
 import { parseDateToTimestamp } from "./utils";
 
 /** Laravel `campaign_type_id` → Convex program id (replace with real Convex ids). */
@@ -42,6 +46,8 @@ export type ImpactRecordConvexRow = {
   originalEmail: string;
   purchaserEmail: string;
   createdAt: number;
+  /** From Laravel `campaigns.campaign_type_id` via `contributionKindFromCampaignTypeId`. */
+  contributionKind: ContributionKind;
 };
 
 export type MapImpactRecordsContext = {
@@ -180,6 +186,9 @@ export function mapEnrichedRecipientsToImpactRecords(
       originalEmail: String(recipient.origin_email ?? ""),
       purchaserEmail: String(recipient.email ?? ""),
       createdAt,
+      contributionKind: contributionKindFromCampaignTypeId(
+        campaign?.campaign_type_id,
+      ),
     });
   }
 

@@ -4,4 +4,4 @@ export const DB_SOURCES = {
   WORDPRESS_APP: "wordpress_app",
 };
 
-export const ID_CAP = 100;
+export const ID_CAP = 1000000;

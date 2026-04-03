@@ -38,6 +38,10 @@ import {
 } from "./utils/utils";
 import { fetchInvitesInBatches } from "./extractors/tribe_app";
 import { mapInviteFieldsToConvex } from "./transformers/tribe-data";
+import {
+  buildFallbackImpactAccountRecordsForBatch,
+  registerFallbackAccountsFromInsertResults,
+} from "./utils/fallbackCampaignRecipientAccounts";
 
 const BATCH_SIZE = 50;
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
@@ -52,10 +56,12 @@ async function runMigration(): Promise<void> {
   try {
     await convex.mutation(api.migrations.wipeAllData);
     console.log("=====CONVEX DATA WIPED!!!=====");
+
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
+    await migrateFallbackAccounts();
     await migrateTrials();
     await migrateTribeInvites();
     await migrateImpactRecords();
@@ -87,9 +93,7 @@ function parseInviteCheckpoint(
     if (o?.createdAt && o?.id) {
       return { createdAt: new Date(o.createdAt), id: String(o.id) };
     }
-  } catch {
-    // ignore
-  }
+  } catch { }
   return null;
 }
 
@@ -499,6 +503,44 @@ async function migratePersonalAccounts() {
     }
   }
   console.log("✅ Personal accounts migration done");
+}
+
+async function migrateFallbackAccounts() {
+  const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
+  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+
+  for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
+    let maxIdInBatch: number = lastId;
+    for (const r of batch) {
+      maxIdInBatch = Number(r.id);
+    }
+
+    const enriched = await enrichCampaignRecipientBatch(batch);
+    const records = buildFallbackImpactAccountRecordsForBatch(enriched, ctx);
+    console.log("Fallback records==>", records);
+    if (records.length > 0) {
+      const ownerAndAccountIds: {
+        ownerId: string;
+        accountId: string;
+      }[] = await convex.mutation(api.migrations.bulkInsertImpactAccounts, {
+        records,
+      });
+
+      registerFallbackAccountsFromInsertResults(records, ownerAndAccountIds);
+      await refillAcountIdForUsers(ownerAndAccountIds);
+    }
+
+    console.log(
+      `[Fallback accounts] enriched=${enriched.length}, inserted=${records.length}`,
+    );
+
+    if (maxIdInBatch !== lastId) {
+      saveCheckpoint(TABLE, maxIdInBatch);
+      lastId = maxIdInBatch;
+    }
+  }
+
+  console.log("✅ Fallback accounts migration done");
 }
 
 
