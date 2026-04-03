@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { config } from "../config";
 import { logger } from "../utils/logger";
+import { MIGRATION_TABLE } from "../config/tables";
 
 let pool: Pool | null = null;
 
@@ -14,6 +15,44 @@ export function getPgPool() {
     });
   }
   return pool;
+}
+
+
+
+/**
+ * Fetch invites in batches using createdAt cursor
+ *
+ * @param {Object} params
+ * @param {number} params.limit
+ * @param {Date | null} params.cursorCreatedAt
+ */
+export async function* fetchInvitesInBatches({
+  limit = 100,
+  cursorCreatedAt = null,
+} = {}) {
+  const client = getPgPool();
+
+  while (true) {
+    const query = `
+    SELECT *
+    FROM ${MIGRATION_TABLE.TRIBE.INVITES}
+    ${cursorCreatedAt ? `WHERE "createdAt" > $2` : ""}
+    ORDER BY "createdAt" ASC
+    LIMIT $1
+  `;
+
+    const values = cursorCreatedAt
+      ? [limit, cursorCreatedAt]
+      : [limit];
+
+    const { rows } = await client.query(query, values);
+
+    if (rows.length === 0) break;
+
+    yield rows;
+
+    cursorCreatedAt = rows[rows.length - 1].createdAt;
+  }
 }
 
 /** Demo helper: list first 10 rows from a Postgres table (uses first postgres table from config, or tbl_tribes). */

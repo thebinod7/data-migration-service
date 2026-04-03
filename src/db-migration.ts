@@ -36,6 +36,7 @@ import {
   parseDateToTimestamp,
   splitFullName,
 } from "./utils/utils";
+import { fetchInvitesInBatches } from "./extractors/tribe_app";
 
 const BATCH_SIZE = 50;
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
@@ -48,16 +49,16 @@ const ctx = {
 
 async function runMigration(): Promise<void> {
   try {
-    // Wipe all convex data before starting the migration
-    await convex.mutation(api.migrations.wipeAllData);
+    // await convex.mutation(api.migrations.wipeAllData);
     console.log("=====Convex data wiped=====");
     // ---------------- First batch ----------------
-    await migrateUsersFromWordpress();
-    await migratePersonalAccounts();
-    await migrateBusinessAccounts();
+    // await migrateUsersFromWordpress();
+    // await migratePersonalAccounts();
+    // await migrateBusinessAccounts();
     // await migrateTrials();
     // await migrateImpactRecords();
-    await migrateFootPrints();
+    // await migrateFootPrints();
+    await migrateTribeInvites();
     // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
@@ -74,6 +75,16 @@ async function runMigration(): Promise<void> {
 }
 
 runMigration();
+
+async function migrateTribeInvites() {
+  const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
+
+  for await (const batch of fetchInvitesInBatches({ limit: BATCH_SIZE, cursorCreatedAt: null })) {
+    console.log("BATCH==>", batch.length);
+  }
+
+  console.log("✅ Tribe invites migration done");
+}
 
 async function migrateFootPrints() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.WP_POSTS;
