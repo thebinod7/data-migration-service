@@ -11,7 +11,7 @@ import {
   listImpactTrialDates,
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
-import { closeWordpressMysqlPool, listWpUsers } from "./extractors/wp_app";
+import { closeWordpressMysqlPool, listFootPrints, listWpUsers } from "./extractors/wp_app";
 import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
 import { mapEnrichedRecipientsToImpactRecords } from "./utils/impactRecordMapper";
 import {
@@ -39,11 +39,12 @@ async function runMigration(): Promise<void> {
     await convex.mutation(api.migrations.wipeAllData);
     console.log("=====Convex data wiped=====");
     // ---------------- First batch ----------------
-    await migrateUsersFromWordpress();
-    await migratePersonalAccounts();
-    await migrateBusinessAccounts();
-    await migrateTrials();
-    await migrateImpactRecords();
+    // await migrateUsersFromWordpress();
+    // await migratePersonalAccounts();
+    // await migrateBusinessAccounts();
+    // await migrateTrials();
+    // await migrateImpactRecords();
+    await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
@@ -60,6 +61,15 @@ async function runMigration(): Promise<void> {
 }
 
 runMigration();
+
+async function migrateFootPrints() {
+  const TABLE = MIGRATION_TABLE.WORDPRESS.FOOT_PRINTS;
+  let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+  for await (const batch of listFootPrints(lastId, BATCH_SIZE)) {
+    let maxIdInBatch: number = lastId;
+    console.log("BATCH==>", batch);
+  }
+}
 
 function resolveImpactRecordAccountId(input: {
   recipient: Record<string, unknown>;
