@@ -32,7 +32,8 @@ export async function writeTribeAppDataBached(
 ) {
   if (sourceTable === "tbl_invites") {
     console.log("Writing invites to convex==>", documents.length);
-    const parsedInvites = mapInviteFieldsToConvex(documents);
+    const parsedInvites = mapInviteFieldsToConvex(documents, () => null);
+    if (parsedInvites.length === 0) return;
     return convex.mutation(api.migrations.bulkInsertReferralCodes, {
       records: parsedInvites,
     });

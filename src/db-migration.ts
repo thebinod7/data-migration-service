@@ -37,6 +37,7 @@ import {
   splitFullName,
 } from "./utils/utils";
 import { fetchInvitesInBatches } from "./extractors/tribe_app";
+import { mapInviteFieldsToConvex } from "./transformers/tribe-data";
 
 const BATCH_SIZE = 50;
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
@@ -49,16 +50,16 @@ const ctx = {
 
 async function runMigration(): Promise<void> {
   try {
-    // await convex.mutation(api.migrations.wipeAllData);
-    console.log("=====Convex data wiped=====");
+    await convex.mutation(api.migrations.wipeAllData);
+    console.log("=====CONVEX DATA WIPED!!!=====");
     // ---------------- First batch ----------------
-    // await migrateUsersFromWordpress();
-    // await migratePersonalAccounts();
-    // await migrateBusinessAccounts();
-    // await migrateTrials();
-    // await migrateImpactRecords();
-    // await migrateFootPrints();
+    await migrateUsersFromWordpress();
+    await migratePersonalAccounts();
+    await migrateBusinessAccounts();
+    await migrateTrials();
     await migrateTribeInvites();
+    await migrateImpactRecords();
+    await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ Migration completed!");
@@ -76,11 +77,73 @@ async function runMigration(): Promise<void> {
 
 runMigration();
 
+function parseInviteCheckpoint(
+  raw: number | string | null,
+): { createdAt: Date; id: string } | null {
+  if (raw == null) return null;
+  if (typeof raw === "number") return null;
+  try {
+    const o = JSON.parse(raw) as { createdAt?: string; id?: string };
+    if (o?.createdAt && o?.id) {
+      return { createdAt: new Date(o.createdAt), id: String(o.id) };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function resolveInviteAccountId(invite: Record<string, unknown>): string | null {
+  const memberId = Number(invite.memberId);
+  if (!Number.isFinite(memberId) || memberId <= 0) return null;
+  const convexUserId = ctx.wpIdToUserId.get(memberId);
+  if (!convexUserId) return null;
+  const accounts = ctx.userToAccounts.get(convexUserId);
+  return accounts?.[0] ?? null;
+}
+
 async function migrateTribeInvites() {
   const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
+  const resumeCursor = parseInviteCheckpoint(getLastPrimaryKey(TABLE));
 
-  for await (const batch of fetchInvitesInBatches({ limit: BATCH_SIZE, cursorCreatedAt: null })) {
-    console.log("BATCH==>", batch.length);
+  for await (const batch of fetchInvitesInBatches({
+    limit: BATCH_SIZE,
+    cursor: resumeCursor,
+  })) {
+    console.log("Batch:", batch)
+    let checkpointAfter: { createdAt: Date; id: string } | null = null;
+
+    for (const row of batch) {
+      checkpointAfter = {
+        createdAt:
+          row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+        id: String(row.id),
+      };
+    }
+
+    const records = mapInviteFieldsToConvex(batch, resolveInviteAccountId);
+    console.log("INVITE RECORDS==>", records);
+
+    if (records.length > 0) {
+      await convex.mutation(api.migrations.bulkInsertReferralCodes, {
+        records,
+      });
+    }
+
+    const skippedThisBatch = batch.length - records.length;
+    console.log(
+      `[Tribe invites] Inserted ${records.length} into Convex, ${skippedThisBatch} skipped.`,
+    );
+
+    if (checkpointAfter) {
+      saveCheckpoint(
+        TABLE,
+        JSON.stringify({
+          createdAt: checkpointAfter.createdAt.toISOString(),
+          id: checkpointAfter.id,
+        }),
+      );
+    }
   }
 
   console.log("✅ Tribe invites migration done");

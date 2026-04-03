@@ -134,10 +134,10 @@ export const bulkInsertReferralCodes = mutation({
     ),
   },
 
-  handler: async (ctx, args) => {
-    for (const record of args.records) {
-      await ctx.db.insert("referral_codes", record);
-    }
+  handler: async (ctx, { records }) => {
+    await Promise.all(
+      records.map((record) => ctx.db.insert("referralCodes", record)),
+    );
   },
 });
 

@@ -19,16 +19,15 @@ export function getPgPool() {
 
 
 
+/** Cursor after the last successfully migrated row (tie-breaks equal createdAt). */
+export type InviteBatchCursor = { createdAt: Date; id: string };
+
 /**
- * Fetch invites in batches using createdAt cursor
- *
- * @param {Object} params
- * @param {number} params.limit
- * @param {Date | null} params.cursorCreatedAt
+ * Fetch invites in batches using (createdAt, id) cursor for stable pagination + checkpoints.
  */
 export async function* fetchInvitesInBatches({
   limit = 100,
-  cursorCreatedAt = null,
+  cursor = null as InviteBatchCursor | null,
 } = {}) {
   const client = getPgPool();
 
@@ -36,14 +35,15 @@ export async function* fetchInvitesInBatches({
     const query = `
     SELECT *
     FROM ${MIGRATION_TABLE.TRIBE.INVITES}
-    ${cursorCreatedAt ? `WHERE "createdAt" > $2` : ""}
-    ORDER BY "createdAt" ASC
+    ${cursor
+        ? `WHERE ("createdAt", id::text) > ($2::timestamptz, $3::text)`
+        : ""
+      }
+    ORDER BY "createdAt" ASC, id::text ASC
     LIMIT $1
   `;
 
-    const values = cursorCreatedAt
-      ? [limit, cursorCreatedAt]
-      : [limit];
+    const values = cursor ? [limit, cursor.createdAt, cursor.id] : [limit];
 
     const { rows } = await client.query(query, values);
 
@@ -51,7 +51,11 @@ export async function* fetchInvitesInBatches({
 
     yield rows;
 
-    cursorCreatedAt = rows[rows.length - 1].createdAt;
+    const last = rows[rows.length - 1];
+    cursor = {
+      createdAt: last.createdAt instanceof Date ? last.createdAt : new Date(last.createdAt),
+      id: String(last.id),
+    };
   }
 }
 
