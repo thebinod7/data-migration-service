@@ -2,6 +2,7 @@ export const MIGRATION_TABLE = {
   WORDPRESS: {
     USERS: "76a_users",
     FOOT_PRINTS: "76a_posts",
+    POSTMETA: "76a_postmeta",
   },
   LARAVEL: {
     IMPACT_PAGES: "impact_pages",

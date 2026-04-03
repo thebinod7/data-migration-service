@@ -229,6 +229,59 @@ export const bulkInsertTrials = mutation({
   },
 });
 
+/** Mirrors main app `convex/calculator/schema.ts` (`calculatorResponseFields` + nested validators). */
+const calculatorScoreByPageValidator = v.object({
+  q1: v.number(),
+  q2: v.number(),
+  q3: v.number(),
+  q4: v.number(),
+  q5: v.number(),
+});
+
+const calculatorCountrySnapshotValidator = v.object({
+  code: v.string(),
+  title: v.string(),
+  averageKg: v.number(),
+});
+
+const calculatorDemographicsValidator = v.object({
+  age: v.optional(v.string()),
+  gender: v.optional(v.string()),
+  occupation: v.optional(v.string()),
+});
+
+const calculatorResponseRecordValidator = v.object({
+  userId: v.id("users"),
+  accountId: v.optional(v.id("accounts")),
+  attemptNumber: v.number(),
+  country: v.optional(calculatorCountrySnapshotValidator),
+  preferenceId: v.optional(v.string()),
+  answers: v.record(v.string(), v.string()),
+  scoreTotal: v.optional(v.number()),
+  scoreBase: v.optional(v.number()),
+  scoreByPage: v.optional(calculatorScoreByPageValidator),
+  demographics: v.optional(calculatorDemographicsValidator),
+  newsletterOptIn: v.optional(v.boolean()),
+  sdgPersonal: v.optional(v.array(v.string())),
+  sdgPlanet: v.optional(v.array(v.string())),
+  referredBy: v.optional(v.string()),
+  currentPage: v.string(),
+  status: v.union(v.literal("in_progress"), v.literal("completed")),
+  completedAt: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
+export const bulkInsertCalculatorResponses = mutation({
+  args: {
+    records: v.array(calculatorResponseRecordValidator),
+  },
+  handler: async (ctx, { records }) => {
+    await Promise.all(
+      records.map((record) => ctx.db.insert("calculatorResponses", record)),
+    );
+  },
+});
 
 async function deleteAllInTable(ctx: MutationCtx, table: string) {
   for (; ;) {
@@ -243,6 +296,7 @@ export const wipeAllData = mutation({
     // Children / dependents first (migration also writes memberships, profiles, sections per account).
     await deleteAllInTable(ctx, "impactRecords");
     await deleteAllInTable(ctx, "trials");
+    await deleteAllInTable(ctx, "calculatorResponses");
     await deleteAllInTable(ctx, PROFILE_SECTIONS_TABLE);
     await deleteAllInTable(ctx, "accountProfiles");
     await deleteAllInTable(ctx, "accountMemberships");

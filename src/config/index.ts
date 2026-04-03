@@ -48,7 +48,7 @@ export const config = {
     {
       source: DB_SOURCES.WORDPRESS_APP,
       sourceTable: "wp_posts",
-      convexTable: "calculatorResponseFields",
+      convexTable: "calculatorResponses",
       primaryKey: "ID",
       runMigration: false,
     },
