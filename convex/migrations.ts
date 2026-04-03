@@ -194,6 +194,11 @@ const impactRecordValidator = v.object({
   originalEmail: v.string(),
   purchaserEmail: v.string(),
   createdAt: v.number(),
+  contributionKind: v.union(
+    v.literal("business"),
+    v.literal("personal"),
+    v.literal("other"),
+  ),
 });
 
 export const bulkInsertImpactRecords = mutation({
