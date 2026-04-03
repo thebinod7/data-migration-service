@@ -150,7 +150,7 @@ export async function* listFootPrints(
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(
       `
       SELECT *
-      FROM \`${MIGRATION_TABLE.WORDPRESS.FOOT_PRINTS}\`
+      FROM \`${MIGRATION_TABLE.WORDPRESS.WP_POSTS}\`
       WHERE ID > ? AND post_type = '${FOOTPRINT_POST_TYPE}'
       ORDER BY ID ASC
       LIMIT ${limit}
@@ -178,7 +178,7 @@ export async function loadFootprintAttemptNumberByPostId(): Promise<
   const [rows] = await pool.execute<mysql.RowDataPacket[]>(
     `
     SELECT ID, post_date, post_title, post_content
-    FROM \`${MIGRATION_TABLE.WORDPRESS.FOOT_PRINTS}\`
+    FROM \`${MIGRATION_TABLE.WORDPRESS.WP_POSTS}\`
     WHERE post_type = ? AND ID > 0 AND ID <= ?
     `,
     [FOOTPRINT_POST_TYPE, ID_CAP],
