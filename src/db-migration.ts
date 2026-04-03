@@ -11,7 +11,12 @@ import {
   listImpactTrialDates,
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
-import { closeWordpressMysqlPool, listFootPrints, listWpUsers } from "./extractors/wp_app";
+import {
+  closeWordpressMysqlPool,
+  listFootPrints,
+  listWpUsers,
+  loadFootprintAttemptNumberByPostId,
+} from "./extractors/wp_app";
 import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
 import { mapEnrichedRecipientsToImpactRecords } from "./utils/impactRecordMapper";
 import {
@@ -63,11 +68,21 @@ async function runMigration(): Promise<void> {
 runMigration();
 
 async function migrateFootPrints() {
+  const attemptByPostId = await loadFootprintAttemptNumberByPostId();
+  console.log(
+    `[Footprints] attemptNumber map built for ${attemptByPostId.size} post(s) (per-email order: post_date, then ID).`,
+  );
   const TABLE = MIGRATION_TABLE.WORDPRESS.FOOT_PRINTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
   for await (const batch of listFootPrints(lastId, BATCH_SIZE)) {
-    let maxIdInBatch: number = lastId;
-    console.log("BATCH==>", batch);
+    const footprintRecords = batch.map((row) => ({
+      ID: row.ID,
+      attemptNumber: attemptByPostId.get(Number(row.ID)),
+      post_date: row.post_date,
+      post_title: row.post_title,
+      post_content: row.post_content,
+    }))
+    console.log("FOOTPRINT RECORDS==>", footprintRecords);
   }
 }
 

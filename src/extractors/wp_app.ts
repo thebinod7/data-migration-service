@@ -1,10 +1,13 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
 import { MIGRATION_TABLE } from "../config/tables";
+import { ID_CAP } from "../constants/contants";
+import {
+  buildAttemptNumberByPostId,
+  type FootprintAttemptRow,
+} from "../transformers/footprint-attempt";
 
 const FOOTPRINT_SCORE_META_KEY = "footprint_score";
-import { ID_CAP } from "../constants/contants";
-
 let pool: mysql.Pool | null = null;
 
 export function getMysqlPool(): mysql.Pool {
@@ -161,6 +164,27 @@ export async function* listFootPrints(
     yield batch;
     currentId = batch[batch.length - 1].ID as number;
   }
+}
+
+/**
+ * One pre-pass over all `plastic_footprint` posts (within `ID_CAP`): deterministic
+ * `attemptNumber` per normalized email, ordered by `post_date` then `ID`.
+ * See `buildAttemptNumberByPostId` in `transformers/footprint-attempt.ts`.
+ */
+export async function loadFootprintAttemptNumberByPostId(): Promise<
+  Map<number, number>
+> {
+  const pool = getMysqlPool();
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `
+    SELECT ID, post_date, post_title, post_content
+    FROM \`${MIGRATION_TABLE.WORDPRESS.FOOT_PRINTS}\`
+    WHERE post_type = ? AND ID > 0 AND ID <= ?
+    `,
+    [FOOTPRINT_POST_TYPE, ID_CAP],
+  );
+  const list = (Array.isArray(rows) ? rows : []) as FootprintAttemptRow[];
+  return buildAttemptNumberByPostId(list);
 }
 
 /**
