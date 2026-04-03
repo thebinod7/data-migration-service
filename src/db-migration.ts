@@ -101,7 +101,7 @@ async function migrateFootPrints() {
       const userId = ctx.emailToUserId.get(email);
       if (!userId) continue;
 
-      const accounts = ctx.userToAccounts.get(userId);
+      const accounts = ctx.userToAccounts.get(userId); // must have activeAccountId set in DB
       const accountId = accounts?.[0];
 
       const payload = parseFootprintPostToCalculatorPayload(
@@ -352,7 +352,6 @@ async function refillAcountIdForUsers(
     if (!accountId) continue;
     // Get or initialize account list for this user
     let userAccounts = ctx.userToAccounts.get(ownerId);
-    console.log("FOUND==>", userAccounts)
     if (!userAccounts) {
       userAccounts = [];
       ctx.userToAccounts.set(ownerId, userAccounts);
