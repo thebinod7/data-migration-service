@@ -40,21 +40,26 @@ import { fetchInvitesInBatches } from "./extractors/tribe_app";
 import { mapInviteFieldsToConvex } from "./transformers/tribe-data";
 import {
   buildFallbackImpactAccountRecordsForBatch,
+  buildMinimalPersonalImpactAccount,
   registerFallbackAccountsFromInsertResults,
 } from "./utils/fallbackCampaignRecipientAccounts";
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 500;
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 const ctx = {
   emailToUserId: new Map<string, string>(),
   wpIdToUserId: new Map<number, string>(),
   userToAccounts: new Map<string, string[]>(),
+  userIdToMeta: new Map<
+    string,
+    { email: string; firstName: string; lastName: string }
+  >(),
 };
 
 async function runMigration(): Promise<void> {
   try {
-    await convex.mutation(api.migrations.wipeAllData);
+    // await convex.mutation(api.migrations.wipeAllData);
     console.log("=====CONVEX DATA WIPED!!!=====");
 
     // ---------------- First batch ----------------
@@ -62,6 +67,7 @@ async function runMigration(): Promise<void> {
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
     await migrateFallbackAccounts();
+    await migrateDefaultPersonalAccountsForStragglers();
     await migrateTrials();
     await migrateTribeInvites();
     await migrateImpactRecords();
@@ -97,7 +103,9 @@ function parseInviteCheckpoint(
   return null;
 }
 
-function resolveInviteAccountId(invite: Record<string, unknown>): string | null {
+function resolveInviteAccountId(
+  invite: Record<string, unknown>,
+): string | null {
   const memberId = Number(invite.memberId);
   if (!Number.isFinite(memberId) || memberId <= 0) return null;
   const convexUserId = ctx.wpIdToUserId.get(memberId);
@@ -114,13 +122,15 @@ async function migrateTribeInvites() {
     limit: BATCH_SIZE,
     cursor: resumeCursor,
   })) {
-    console.log("Batch:", batch)
+    console.log("Batch:", batch);
     let checkpointAfter: { createdAt: Date; id: string } | null = null;
 
     for (const row of batch) {
       checkpointAfter = {
         createdAt:
-          row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+          row.createdAt instanceof Date
+            ? row.createdAt
+            : new Date(row.createdAt),
         id: String(row.id),
       };
     }
@@ -300,13 +310,15 @@ async function migrateTrials() {
 
       records.push({
         accountId,
-        type: 'professional_impact_page',
+        type: "professional_impact_page",
         startDate,
         endDate,
         source: "signup",
         status: endDate > now ? "active" : "expired",
         createdAt: createdAtFinal,
-        updatedAt: row.updated_at ? parseDateToTimestamp(String(row.updated_at)) : now,
+        updatedAt: row.updated_at
+          ? parseDateToTimestamp(String(row.updated_at))
+          : now,
       });
     }
 
@@ -543,6 +555,34 @@ async function migrateFallbackAccounts() {
   console.log("✅ Fallback accounts migration done");
 }
 
+async function migrateDefaultPersonalAccountsForStragglers() {
+  const stragglerIds = [...new Set(ctx.wpIdToUserId.values())].filter(
+    (userId) => !ctx.userToAccounts.get(userId)?.length,
+  );
+
+  let inserted = 0;
+  for (let i = 0; i < stragglerIds.length; i += BATCH_SIZE) {
+    const chunk = stragglerIds.slice(i, i + BATCH_SIZE);
+    const records = chunk.map((ownerId) =>
+      buildMinimalPersonalImpactAccount(
+        ownerId,
+        ctx.userIdToMeta.get(ownerId) ?? {},
+      ),
+    );
+
+    const ownerAndAccountIds: { ownerId: string; accountId: string }[] =
+      await convex.mutation(api.migrations.bulkInsertImpactAccounts, {
+        records,
+      });
+    await refillAcountIdForUsers(ownerAndAccountIds);
+    inserted += records.length;
+  }
+
+  console.log(
+    `[Straggler personal accounts] eligible=${stragglerIds.length}, inserted=${inserted}`,
+  );
+  console.log("✅ Default personal accounts for stragglers done");
+}
 
 async function migrateUsersFromWordpress() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.USERS;
@@ -583,6 +623,11 @@ async function migrateUsersFromWordpress() {
       const u = users[i];
       ctx.emailToUserId.set(u.email, r.id);
       ctx.wpIdToUserId.set(u.wordpressUserId, r.id);
+      ctx.userIdToMeta.set(r.id, {
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+      });
     });
 
     // checkpoint AFTER mutation

@@ -27,6 +27,13 @@ export type FallbackImpactAccountRecord = {
   profile: ImpactPageProfileFields;
 };
 
+/** User-facing fields for naming a minimal default personal account (e.g. WordPress stragglers). */
+export type MinimalPersonalAccountMeta = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
 /**
  * Tracks accounts created by the fallback migration in this process (across batches).
  * Does not reflect accounts from `migratePersonalAccounts` / `migrateBusinessAccounts`;
@@ -66,6 +73,45 @@ function fallbackDisplayName(recipient: Record<string, unknown>): string {
 
 function slugTail(ownerId: string): string {
   return ownerId.replace(/[^a-zA-Z0-9]/g, "").slice(-12) || "user";
+}
+
+function displayNameFromMinimalMeta(meta: MinimalPersonalAccountMeta): string {
+  const first = String(meta.firstName ?? "").trim();
+  const last = String(meta.lastName ?? "").trim();
+  const combined = [first, last].filter(Boolean).join(" ");
+  if (combined) return combined;
+  const email = String(meta.email ?? "").trim();
+  const local = email.split("@")[0] ?? "";
+  if (local) return local;
+  return "Personal Account";
+}
+
+/**
+ * One default personal impact row for Convex `bulkInsertImpactAccounts`, matching
+ * fallback personal drafts (`queuePersonalDraft`): slug = `generateSlug(name)` + `slugTail`,
+ * empty personal profile map, same flags and timestamps pattern (here both times use `now`
+ * when no source `created_at` exists).
+ */
+export function buildMinimalPersonalImpactAccount(
+  ownerId: string,
+  meta: MinimalPersonalAccountMeta,
+): FallbackImpactAccountRecord {
+  const displayName = displayNameFromMinimalMeta(meta);
+  const name = displayName.trim() || "Personal Account";
+  const base = generateSlug(name);
+  const now = Date.now();
+  return {
+    ownerId,
+    type: "personal",
+    name,
+    slug: `${base}-${slugTail(ownerId)}`,
+    isDefault: true,
+    onboardingCompleted: true,
+    isActiveAdvisor: false,
+    createdAt: now,
+    updatedAt: now,
+    profile: mapPersonalImpactPageToProfile({}),
+  };
 }
 
 function hasPersonalFromFallback(ownerId: string): boolean {
