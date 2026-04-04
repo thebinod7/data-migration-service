@@ -33,6 +33,19 @@ const impactAccountProfileValidator = v.object({
   logoId: v.optional(v.string()),
 });
 
+async function findExistingAccountByOwnerAndType(
+  ctx: MutationCtx,
+  ownerId: string,
+  type: string,
+) {
+  return await ctx.db
+    .query("accounts")
+    .withIndex("by_ownerId_type", (q) =>
+      q.eq("ownerId", ownerId).eq("type", type),
+    )
+    .first();
+}
+
 export const bulkInsertImpactAccounts = mutation({
   args: {
     records: v.array(
@@ -52,33 +65,42 @@ export const bulkInsertImpactAccounts = mutation({
   },
 
   handler: async (ctx, { records }) => {
-    return await Promise.all(
-      records.map(async (r) => {
-        const { profile, ...accountFields } = r;
-        const accountId = await ctx.db.insert("accounts", accountFields);
-        await ctx.db.insert("accountMemberships", {
+    const out: { ownerId: string; accountId: string }[] = [];
+    for (const r of records) {
+      const existing = await findExistingAccountByOwnerAndType(
+        ctx,
+        r.ownerId,
+        r.type,
+      );
+      if (existing) {
+        out.push({ ownerId: r.ownerId, accountId: existing._id });
+        continue;
+      }
+      const { profile, ...accountFields } = r;
+      const accountId = await ctx.db.insert("accounts", accountFields);
+      await ctx.db.insert("accountMemberships", {
+        accountId,
+        userId: r.ownerId,
+        role: "owner",
+        createdAt: r.createdAt,
+      });
+      if (profile) {
+        await ctx.db.insert("accountProfiles", {
           accountId,
-          userId: r.ownerId,
-          role: "owner",
-          createdAt: r.createdAt,
-        });
-        if (profile) {
-          await ctx.db.insert("accountProfiles", {
-            accountId,
-            ...profile,
-            createdAt: r.createdAt,
-            updatedAt: r.updatedAt,
-          });
-        }
-        await ctx.db.insert(PROFILE_SECTIONS_TABLE, {
-          accountId,
-          config: HARDCODED_PROFILE_SECTION_CONFIG,
+          ...profile,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt,
         });
-        return { ownerId: r.ownerId, accountId };
-      }),
-    );
+      }
+      await ctx.db.insert(PROFILE_SECTIONS_TABLE, {
+        accountId,
+        config: HARDCODED_PROFILE_SECTION_CONFIG,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      });
+      out.push({ ownerId: r.ownerId, accountId });
+    }
+    return out;
   },
 });
 
@@ -289,11 +311,11 @@ export const bulkInsertCalculatorResponses = mutation({
 });
 
 async function deleteAllInTable(ctx: MutationCtx, table: string) {
-  for (; ;) {
-    const batch = await ctx.db.query(table).take(256);
-    if (batch.length === 0) return;
-    await Promise.all(batch.map((doc) => ctx.db.delete(doc._id)));
-  }
+  // for (; ;) {
+  //   const batch = await ctx.db.query(table).take(256);
+  //   if (batch.length === 0) return;
+  //   await Promise.all(batch.map((doc) => ctx.db.delete(doc._id)));
+  // }
 }
 
 export const wipeAllData = mutation({

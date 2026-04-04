@@ -44,18 +44,30 @@ import {
   registerFallbackAccountsFromInsertResults,
 } from "./utils/fallbackCampaignRecipientAccounts";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 1000;
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
+
+type OwnerAccountKind = "personal" | "business";
 
 const ctx = {
   emailToUserId: new Map<string, string>(),
   wpIdToUserId: new Map<number, string>(),
   userToAccounts: new Map<string, string[]>(),
+  ownerAccountTypes: new Map<string, Set<OwnerAccountKind>>(),
   userIdToMeta: new Map<
     string,
     { email: string; firstName: string; lastName: string }
   >(),
 };
+
+function registerOwnerAccountType(ownerId: string, type: OwnerAccountKind) {
+  let kinds = ctx.ownerAccountTypes.get(ownerId);
+  if (!kinds) {
+    kinds = new Set();
+    ctx.ownerAccountTypes.set(ownerId, kinds);
+  }
+  kinds.add(type);
+}
 
 async function runMigration(): Promise<void> {
   try {
@@ -69,7 +81,7 @@ async function runMigration(): Promise<void> {
     await migrateFallbackAccounts();
     await migrateDefaultPersonalAccountsForStragglers();
     await migrateTrials();
-    await migrateTribeInvites();
+    // await migrateTribeInvites();
     await migrateImpactRecords();
     await migrateFootPrints();
     // ---------------- End of first batch ----------------
@@ -122,7 +134,6 @@ async function migrateTribeInvites() {
     limit: BATCH_SIZE,
     cursor: resumeCursor,
   })) {
-    console.log("Batch:", batch);
     let checkpointAfter: { createdAt: Date; id: string } | null = null;
 
     for (const row of batch) {
@@ -136,7 +147,6 @@ async function migrateTribeInvites() {
     }
 
     const records = mapInviteFieldsToConvex(batch, resolveInviteAccountId);
-    console.log("INVITE RECORDS==>", records);
 
     if (records.length > 0) {
       await convex.mutation(api.migrations.bulkInsertReferralCodes, {
@@ -169,8 +179,6 @@ async function migrateFootPrints() {
 
   for await (const batch of listFootPrints(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
-
-    console.log("BATCH==>", batch);
 
     const postIds = batch
       .map((r) => Number(r.ID))
@@ -387,12 +395,16 @@ async function migrateBusinessAccounts() {
   for await (const batch of listBusinessImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
     const records: any[] = [];
+    const ownerIdsQueuedThisBatch = new Set<string>();
 
     for (const p of batch) {
       maxIdInBatch = Number(p.id);
 
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
       if (!ownerId) continue;
+      if (ctx.ownerAccountTypes.get(ownerId)?.has("business")) continue;
+      if (ownerIdsQueuedThisBatch.has(ownerId)) continue;
+      ownerIdsQueuedThisBatch.add(ownerId);
 
       records.push({
         ownerId,
@@ -420,7 +432,7 @@ async function migrateBusinessAccounts() {
         },
       );
 
-      await refillAcountIdForUsers(ownerAndAccountIds);
+      await refillAcountIdForUsers(ownerAndAccountIds, records);
     }
 
     // checkpoint AFTER mutation
@@ -434,7 +446,18 @@ async function migrateBusinessAccounts() {
 
 async function refillAcountIdForUsers(
   results: { ownerId: string; accountId: string }[],
+  records: { ownerId: string; type: OwnerAccountKind }[],
 ) {
+  if (results.length !== records.length) {
+    throw new Error(
+      `refillAcountIdForUsers: results.length (${results.length}) !== records.length (${records.length})`,
+    );
+  }
+  for (let i = 0; i < results.length; i++) {
+    if (!results[i].accountId) continue;
+    registerOwnerAccountType(results[i].ownerId, records[i].type);
+  }
+
   // map accountId to users
   for (const result of results) {
     const { ownerId, accountId } = result;
@@ -473,12 +496,16 @@ async function migratePersonalAccounts() {
   for await (const batch of listPersonalImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
     const records: any[] = [];
+    const ownerIdsQueuedThisBatch = new Set<string>();
 
     for (const p of batch) {
       maxIdInBatch = Number(p.id);
 
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
       if (!ownerId) continue;
+      if (ctx.ownerAccountTypes.get(ownerId)?.has("personal")) continue;
+      if (ownerIdsQueuedThisBatch.has(ownerId)) continue;
+      ownerIdsQueuedThisBatch.add(ownerId);
 
       const name = `${p.first_name || ""} ${p.last_name || ""}`.trim();
       records.push({
@@ -505,7 +532,7 @@ async function migratePersonalAccounts() {
         },
       );
 
-      await refillAcountIdForUsers(ownerAndAccountIds);
+      await refillAcountIdForUsers(ownerAndAccountIds, records);
     }
 
     // checkpoint AFTER mutation
@@ -529,7 +556,6 @@ async function migrateFallbackAccounts() {
 
     const enriched = await enrichCampaignRecipientBatch(batch);
     const records = buildFallbackImpactAccountRecordsForBatch(enriched, ctx);
-    console.log("Fallback records==>", records);
     if (records.length > 0) {
       const ownerAndAccountIds: {
         ownerId: string;
@@ -539,7 +565,7 @@ async function migrateFallbackAccounts() {
       });
 
       registerFallbackAccountsFromInsertResults(records, ownerAndAccountIds);
-      await refillAcountIdForUsers(ownerAndAccountIds);
+      await refillAcountIdForUsers(ownerAndAccountIds, records);
     }
 
     console.log(
@@ -563,7 +589,12 @@ async function migrateDefaultPersonalAccountsForStragglers() {
   let inserted = 0;
   for (let i = 0; i < stragglerIds.length; i += BATCH_SIZE) {
     const chunk = stragglerIds.slice(i, i + BATCH_SIZE);
-    const records = chunk.map((ownerId) =>
+    const toInsert = chunk.filter(
+      (ownerId) => !ctx.ownerAccountTypes.get(ownerId)?.has("personal"),
+    );
+    if (toInsert.length === 0) continue;
+
+    const records = toInsert.map((ownerId) =>
       buildMinimalPersonalImpactAccount(
         ownerId,
         ctx.userIdToMeta.get(ownerId) ?? {},
@@ -574,7 +605,7 @@ async function migrateDefaultPersonalAccountsForStragglers() {
       await convex.mutation(api.migrations.bulkInsertImpactAccounts, {
         records,
       });
-    await refillAcountIdForUsers(ownerAndAccountIds);
+    await refillAcountIdForUsers(ownerAndAccountIds, records);
     inserted += records.length;
   }
 

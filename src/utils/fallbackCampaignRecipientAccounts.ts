@@ -11,6 +11,8 @@ import { generateSlug, parseDateToTimestamp } from "./utils";
 export type FallbackAccountsMigrationCtx = {
   emailToUserId: Map<string, string>;
   wpIdToUserId: Map<number, string>;
+  /** Kinds already created earlier in migration (e.g. personal/business from Laravel via `refillAcountIdForUsers`). */
+  ownerAccountTypes: Map<string, Set<"personal" | "business">>;
 };
 
 /** Convex `bulkInsertImpactAccounts` payload row (same shape as other migrations). */
@@ -36,8 +38,8 @@ export type MinimalPersonalAccountMeta = {
 
 /**
  * Tracks accounts created by the fallback migration in this process (across batches).
- * Does not reflect accounts from `migratePersonalAccounts` / `migrateBusinessAccounts`;
- * run those first to avoid duplicate defaults when possible.
+ * Laravel-created accounts are not in these maps; pass `ownerAccountTypes` on the context
+ * so `queuePersonalDraft` / `queueBusinessDraft` can skip when that kind already exists.
  */
 const personalAccountIdByOwner = new Map<string, string>();
 const businessAccountIdsByOwner = new Map<string, string[]>();
@@ -126,7 +128,9 @@ function queuePersonalDraft(
   ownerId: string,
   recipient: Record<string, unknown>,
   drafts: Map<string, FallbackImpactAccountRecord>,
+  c: FallbackAccountsMigrationCtx,
 ): void {
+  if (c.ownerAccountTypes.get(ownerId)?.has("personal")) return;
   if (hasPersonalFromFallback(ownerId) || drafts.has(ownerId)) return;
   const displayName = fallbackDisplayName(recipient);
   const name = displayName.trim() || "Personal Account";
@@ -152,7 +156,9 @@ function queueBusinessDraft(
   ownerId: string,
   recipient: Record<string, unknown>,
   drafts: Map<string, FallbackImpactAccountRecord>,
+  c: FallbackAccountsMigrationCtx,
 ): void {
+  if (c.ownerAccountTypes.get(ownerId)?.has("business")) return;
   if (hasBusinessFromFallback(ownerId) || drafts.has(ownerId)) return;
   const displayName = fallbackDisplayName(recipient);
   const name = displayName.trim() || "Business Account";
@@ -192,9 +198,9 @@ export function buildFallbackImpactAccountRecordsForBatch(
 
     const kind = contributionKindFromCampaignTypeId(campaign?.campaign_type_id);
     if (kind === "business") {
-      queueBusinessDraft(ownerId, recipient, businessDrafts);
+      queueBusinessDraft(ownerId, recipient, businessDrafts, c);
     } else {
-      queuePersonalDraft(ownerId, recipient, personalDrafts);
+      queuePersonalDraft(ownerId, recipient, personalDrafts, c);
     }
   }
 

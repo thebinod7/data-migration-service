@@ -15,14 +15,12 @@ export async function writeCertificateAppDataBached(
 ) {
   if (sourceTable === "users") {
     const mappedAccounts = mapUsersFieldsToConvexAccount(documents);
-    console.log("mappedAccounts==>", mappedAccounts[0]);
     return convex.mutation(api.migrations.bulkInsertAccounts, {
       records: mappedAccounts,
     });
   }
   if (sourceTable === "personal_impact_pages") {
     console.log("Writing impact pages to convex==>", documents.length);
-    console.log("DOC:==>", documents[0]);
   }
 }
 
@@ -61,6 +59,5 @@ export async function writeWordpressAppDataBached(
   }
   if (sourceTable === "wp_posts") {
     console.log("Write to account table:", documents.length);
-    console.log("DOC:==>", documents[0]);
   }
 }
