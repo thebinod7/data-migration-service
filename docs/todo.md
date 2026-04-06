@@ -18,5 +18,5 @@
 - ProfileSection => config
 - ImpactRecords => programId, templateId, source
 - Trials => ✅
-- CalculatorReponse => attemptNumber, scoreTotal, scoreBase, scoreByPage, sdgPersonal, sdgPlanet, referredBy, currentPage
+- CalculatorReponse => attemptNumber, scoreTotal, scoreBase, scoreByPage, referredBy, currentPage
 - ReferralCodes => ✅

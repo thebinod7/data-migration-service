@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
 import { MIGRATION_TABLE } from "../config/tables";
+import { BATCH_SIZE } from "../constants/contants";
 
 let pool: mysql.Pool | null = null;
 
@@ -119,12 +120,12 @@ export async function enrichCampaignRecipientBatch(
 
 export async function* listCampaignRecipients(
   lastSeenId: number = 0,
-  batchSize: number = 5,
+  batchSize: number = BATCH_SIZE,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 
   let currentId = Math.max(0, Number(lastSeenId) || 0);
-  const limit = Math.max(1, Number(batchSize) || 5);
+  const limit = Math.max(1, Number(batchSize) || BATCH_SIZE);
 
   while (true) {
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(
@@ -148,7 +149,7 @@ export async function* listCampaignRecipients(
 
 export async function* listBusinessImpactPages(
   lastSeenId: number = 0,
-  batchSize: number = 5,
+  batchSize: number = BATCH_SIZE,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 
@@ -177,7 +178,7 @@ export async function* listBusinessImpactPages(
 
 export async function* listImpactTrialDates(
   lastSeenId: number = 0,
-  batchSize: number = 5,
+  batchSize: number = BATCH_SIZE,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 
@@ -206,7 +207,7 @@ export async function* listImpactTrialDates(
 
 export async function* listPersonalImpactPages(
   lastSeenId: number = 0,
-  batchSize: number = 5,
+  batchSize: number = BATCH_SIZE,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 

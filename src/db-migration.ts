@@ -43,8 +43,8 @@ import {
   buildMinimalPersonalImpactAccount,
   registerFallbackAccountsFromInsertResults,
 } from "./utils/fallbackCampaignRecipientAccounts";
+import { BATCH_SIZE } from "./constants/contants";
 
-const BATCH_SIZE = 1000;
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 type OwnerAccountKind = "personal" | "business";
@@ -72,7 +72,7 @@ function registerOwnerAccountType(ownerId: string, type: OwnerAccountKind) {
 async function runMigration(): Promise<void> {
   try {
     // await convex.mutation(api.migrations.wipeAllData);
-    console.log("=====CONVEX DATA WIPED!!!=====");
+    console.log("🔄 Starting migration...");
 
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
@@ -83,10 +83,10 @@ async function runMigration(): Promise<void> {
     await migrateTrials();
     // await migrateTribeInvites();
     await migrateImpactRecords();
-    await migrateFootPrints();
+    // await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
-    console.log("✅ Migration completed!");
+    console.log("✅ MIGRATION COMPLETED!!!");
   } catch (err: any) {
     console.error("Migration failed!", {
       error: err?.message,
@@ -173,6 +173,7 @@ async function migrateTribeInvites() {
   console.log("✅ Tribe invites migration done");
 }
 
+// Calculator responses migration
 async function migrateFootPrints() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.WP_POSTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
@@ -223,7 +224,7 @@ async function migrateFootPrints() {
       });
     }
 
-    console.log("RECORDS==>", records);
+    console.log("Footprints RECORDS==>", records[0]);
 
     if (records.length > 0) {
       await convex.mutation(api.migrations.bulkInsertCalculatorResponses, {
@@ -545,6 +546,7 @@ async function migratePersonalAccounts() {
 }
 
 async function migrateFallbackAccounts() {
+  console.log("🔄 Migrating fallback accounts...");
   const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
@@ -573,7 +575,7 @@ async function migrateFallbackAccounts() {
     );
 
     if (maxIdInBatch !== lastId) {
-      saveCheckpoint(TABLE, maxIdInBatch);
+      // saveCheckpoint(TABLE, maxIdInBatch); // Skipping to re-fetch recipients from DB on impact records migration
       lastId = maxIdInBatch;
     }
   }
