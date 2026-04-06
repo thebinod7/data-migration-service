@@ -3,6 +3,7 @@ export const MIGRATION_TABLE = {
     USERS: "76a_users",
     WP_POSTS: "76a_posts",
     POSTMETA: "76a_postmeta",
+    AFFILIATES: '76a_affiliate_wp_affiliates'
   },
   LARAVEL: {
     IMPACT_PAGES: "impact_pages",

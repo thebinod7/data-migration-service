@@ -1,7 +1,7 @@
 import mysql from "mysql2/promise";
 import { config } from "../config";
 import { MIGRATION_TABLE } from "../config/tables";
-import { ID_CAP } from "../constants/contants";
+import { AFFILIATE_STATUS_ACTIVE, ID_CAP } from "../constants/contants";
 import {
   buildAttemptNumberByPostId,
   type FootprintAttemptRow,
@@ -185,6 +185,41 @@ export async function loadFootprintAttemptNumberByPostId(): Promise<
   );
   const list = (Array.isArray(rows) ? rows : []) as FootprintAttemptRow[];
   return buildAttemptNumberByPostId(list);
+}
+
+/**
+ * Full scan of affiliate rows: WordPress `user_id` → advisor active flag.
+ * `true` only when any row for that user has `status` equal to `active` (case-insensitive, trimmed).
+ * Multiple rows per user use OR semantics; only `true` is stored so an active row is never overwritten by inactive.
+ */
+export async function loadAffiliateAdvisorActiveByWpUserId(): Promise<
+  Map<number, boolean>
+> {
+  const pool = getMysqlPool();
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `
+    SELECT user_id, status
+    FROM \`${MIGRATION_TABLE.WORDPRESS.AFFILIATES}\`
+    `,
+  );
+
+  const byWpUserId = new Map<number, boolean>();
+  const list = Array.isArray(rows) ? rows : [];
+
+  for (const row of list) {
+    const wpUserId = Number(row.user_id);
+    if (!Number.isFinite(wpUserId) || wpUserId <= 0) continue;
+
+    const statusRaw = row.status;
+    const normalized = String(statusRaw ?? "")
+      .trim()
+      .toLowerCase();
+    if (normalized === AFFILIATE_STATUS_ACTIVE) {
+      byWpUserId.set(wpUserId, true);
+    }
+  }
+
+  return byWpUserId;
 }
 
 /**

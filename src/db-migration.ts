@@ -16,6 +16,7 @@ import {
   getFootprintScoresByPostIds,
   listFootPrints,
   listWpUsers,
+  loadAffiliateAdvisorActiveByWpUserId,
 } from "./extractors/wp_app";
 import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
 import { mapEnrichedRecipientsToImpactRecords } from "./utils/impactRecordMapper";
@@ -42,6 +43,7 @@ import {
   buildFallbackImpactAccountRecordsForBatch,
   buildMinimalPersonalImpactAccount,
   registerFallbackAccountsFromInsertResults,
+  resolveIsActiveAdvisor,
 } from "./utils/fallbackCampaignRecipientAccounts";
 import { BATCH_SIZE } from "./constants/contants";
 
@@ -52,6 +54,8 @@ type OwnerAccountKind = "personal" | "business";
 const ctx = {
   emailToUserId: new Map<string, string>(),
   wpIdToUserId: new Map<number, string>(),
+  userIdToWpId: new Map<string, number>(),
+  affiliateActiveByWpUserId: new Map<number, boolean>(),
   userToAccounts: new Map<string, string[]>(),
   ownerAccountTypes: new Map<string, Set<OwnerAccountKind>>(),
   userIdToMeta: new Map<
@@ -76,13 +80,15 @@ async function runMigration(): Promise<void> {
 
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
+    ctx.affiliateActiveByWpUserId =
+      await loadAffiliateAdvisorActiveByWpUserId();
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
     await migrateFallbackAccounts();
     await migrateDefaultPersonalAccountsForStragglers();
-    await migrateTrials();
+    // await migrateTrials();
     // await migrateTribeInvites();
-    await migrateImpactRecords();
+    // await migrateImpactRecords();
     // await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
@@ -415,7 +421,8 @@ async function migrateBusinessAccounts() {
           p.slug || generateSlug(String(p.company_name) || `business-${p.id}`),
         isDefault: true,
         onboardingCompleted: true,
-        isActiveAdvisor: false,
+        isActiveAdvisor:
+          ctx.affiliateActiveByWpUserId.get(Number(p.user_id)) ?? false,
         createdAt: parseDateToTimestamp(String(p.created_at)),
         updatedAt: p.updated_at
           ? parseDateToTimestamp(String(p.updated_at))
@@ -516,7 +523,8 @@ async function migratePersonalAccounts() {
         slug: p.slug || generateSlug(name),
         isDefault: true,
         onboardingCompleted: true,
-        isActiveAdvisor: false,
+        isActiveAdvisor:
+          ctx.affiliateActiveByWpUserId.get(Number(p.user_id)) ?? false,
         createdAt: parseDateToTimestamp(String(p.created_at)),
         updatedAt: p.updated_at
           ? parseDateToTimestamp(String(p.updated_at))
@@ -600,6 +608,7 @@ async function migrateDefaultPersonalAccountsForStragglers() {
       buildMinimalPersonalImpactAccount(
         ownerId,
         ctx.userIdToMeta.get(ownerId) ?? {},
+        resolveIsActiveAdvisor(ctx, ownerId),
       ),
     );
 
@@ -656,6 +665,7 @@ async function migrateUsersFromWordpress() {
       const u = users[i];
       ctx.emailToUserId.set(u.email, r.id);
       ctx.wpIdToUserId.set(u.wordpressUserId, r.id);
+      ctx.userIdToWpId.set(r.id, Number(u.wordpressUserId));
       ctx.userIdToMeta.set(r.id, {
         email: u.email,
         firstName: u.firstName,

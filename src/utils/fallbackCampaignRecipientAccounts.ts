@@ -11,9 +11,36 @@ import { generateSlug, parseDateToTimestamp } from "./utils";
 export type FallbackAccountsMigrationCtx = {
   emailToUserId: Map<string, string>;
   wpIdToUserId: Map<number, string>;
+  userIdToWpId: Map<string, number>;
+  affiliateActiveByWpUserId: Map<number, boolean>;
   /** Kinds already created earlier in migration (e.g. personal/business from Laravel via `refillAcountIdForUsers`). */
   ownerAccountTypes: Map<string, Set<"personal" | "business">>;
 };
+
+/**
+ * Resolves affiliate "active advisor" flag from WordPress `user_id` on the recipient when valid;
+ * otherwise uses Convex `ownerId` → WP id (email-only owner resolution paths).
+ */
+export function resolveIsActiveAdvisor(
+  c: FallbackAccountsMigrationCtx,
+  ownerId: string,
+  recipient?: Record<string, unknown>,
+): boolean {
+  const fromRecipient = recipient
+    ? Number(recipient.user_id)
+    : Number.NaN;
+  let wpId: number | undefined;
+  if (Number.isFinite(fromRecipient) && fromRecipient > 0) {
+    wpId = fromRecipient;
+  } else {
+    const mapped = c.userIdToWpId.get(ownerId);
+    if (mapped != null && Number.isFinite(mapped) && mapped > 0) {
+      wpId = mapped;
+    }
+  }
+  if (wpId === undefined) return false;
+  return c.affiliateActiveByWpUserId.get(wpId) ?? false;
+}
 
 /** Convex `bulkInsertImpactAccounts` payload row (same shape as other migrations). */
 export type FallbackImpactAccountRecord = {
@@ -97,6 +124,7 @@ function displayNameFromMinimalMeta(meta: MinimalPersonalAccountMeta): string {
 export function buildMinimalPersonalImpactAccount(
   ownerId: string,
   meta: MinimalPersonalAccountMeta,
+  isActiveAdvisor = false,
 ): FallbackImpactAccountRecord {
   const displayName = displayNameFromMinimalMeta(meta);
   const name = displayName.trim() || "Personal Account";
@@ -109,7 +137,7 @@ export function buildMinimalPersonalImpactAccount(
     slug: `${base}-${slugTail(ownerId)}`,
     isDefault: true,
     onboardingCompleted: true,
-    isActiveAdvisor: false,
+    isActiveAdvisor,
     createdAt: now,
     updatedAt: now,
     profile: mapPersonalImpactPageToProfile({}),
@@ -145,7 +173,7 @@ function queuePersonalDraft(
     slug: `${base}-${slugTail(ownerId)}`,
     isDefault: true,
     onboardingCompleted: true,
-    isActiveAdvisor: false,
+    isActiveAdvisor: resolveIsActiveAdvisor(c, ownerId, recipient),
     createdAt: ts,
     updatedAt: now,
     profile: mapPersonalImpactPageToProfile({}),
@@ -173,7 +201,7 @@ function queueBusinessDraft(
     slug: `${base}-biz-${slugTail(ownerId)}`,
     isDefault: true,
     onboardingCompleted: true,
-    isActiveAdvisor: false,
+    isActiveAdvisor: resolveIsActiveAdvisor(c, ownerId, recipient),
     createdAt: ts,
     updatedAt: now,
     profile: mapBusinessImpactPageToProfile({}),
