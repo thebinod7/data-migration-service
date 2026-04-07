@@ -8,13 +8,15 @@ import {
 } from "./extractors/certificate_app";
 import {
   closeTribePgPool,
-  extractTribeAppDataBatched,
-  listTribes,
+  extractTribeAppDataBatched
 } from "./extractors/tribe_app";
 import {
+  closeWordpressMysqlPool,
+  extractWordpressAppDataBatched,
+} from "./extractors/wp_app";
+import {
   writeCertificateAppDataBached,
-  writeTribeAppDataBached,
-  writeWordpressAppDataBached,
+  writeTribeAppDataBached
 } from "./importer/convex";
 import {
   getLastPrimaryKey,
@@ -23,10 +25,6 @@ import {
   saveCheckpoint,
 } from "./utils/checkpoint";
 import { logger } from "./utils/logger";
-import {
-  extractWordpressAppDataBatched,
-  closeWordpressMysqlPool,
-} from "./extractors/wp_app";
 
 async function runMigration(): Promise<void> {
   logger.info("Migration started", {
@@ -154,19 +152,4 @@ async function migrateWordpressAppDataToConvex(tableConfig: TableConfig) {
     batchSize,
     resumeAfterId,
   );
-
-  for await (const rows of msqlExtractor) {
-    if (!config.dryRun) {
-      await writeWordpressAppDataBached(sourceTable, rows);
-      const lastId = rows[rows.length - 1][primaryKey] || 1;
-      if (lastId != null && !isCheckpointDisabled()) {
-        saveCheckpoint(convexTable, lastId as number | string);
-      }
-    } else {
-      logger.debug("Dry run: skip Convex write", {
-        table: convexTable,
-        count: rows.length,
-      });
-    }
-  }
 }

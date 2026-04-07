@@ -66,8 +66,6 @@ export async function* fetchTribeListInBatches({
   `;
 
     const { rows } = await client.query(query, [limit, offset]);
-    console.log("tribes list batch:", rows[0]);
-
     if (rows.length === 0) break;
 
     yield rows;
@@ -101,7 +99,6 @@ export const testPgConnection = async () => {
   WHERE table_type = 'BASE TABLE'
     AND table_schema NOT IN ('pg_catalog', 'information_schema');
 `);
-    console.log("NOW=>", res.rows);
   } catch (err: any) {
     logger.warn("Postgres connection test", { error: err?.message });
   }
@@ -130,7 +127,6 @@ export async function* extractTribeAppDataBatched(
     lastId = rows[rows.length - 1][pkColumn] as number | string;
     yield rows;
   }
-  // console.log("Finished tribe app tables extraction", { table });
 }
 
 export async function countPgRows(table: string): Promise<number> {

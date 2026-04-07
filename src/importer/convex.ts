@@ -45,20 +45,3 @@ export async function writeTribeAppDataBached(
     });
   }
 }
-
-export async function writeWordpressAppDataBached(
-  sourceTable: string,
-  documents: Record<string, unknown>[],
-) {
-  if (sourceTable === "76a_users") {
-    // TODO: Make unique field and ssoId??
-    console.log("writing users===>", documents.length);
-    const parsedUsers = mapWordpressUsersToConvex(documents);
-    return convex.mutation(api.migrations.bulkInsertUsers, {
-      records: parsedUsers,
-    });
-  }
-  if (sourceTable === "wp_posts") {
-    console.log("Write to account table:", documents.length);
-  }
-}

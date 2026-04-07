@@ -34,9 +34,6 @@ export async function* extractWordpressAppDataBatched(
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
 
-  const tables = await listTables();
-  console.log("Tables", tables);
-
   while (true) {
     const query = `
       SELECT * FROM \`${table}\`

@@ -241,9 +241,7 @@ export async function* extractCertificateAppDataBatched(
   lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
-  // await pool.query("SELECT 1");
-  const total = await countMysqlRows(table);
-  console.log("Total number of rows", { table, total });
+  // const total = await countMysqlRows(table);
 
   while (true) {
     const query = `
