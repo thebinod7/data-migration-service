@@ -41,7 +41,34 @@ export async function* fetchInvitesInBatches({
   `;
 
     const { rows } = await client.query(query, [limit, offset]);
-    console.log("tribe invites batch:", rows.length);
+    console.log("tribe invites batch:", rows[0]);
+
+    if (rows.length === 0) break;
+
+    yield rows;
+
+    offset += rows.length;
+  }
+}
+
+export async function* fetchTribeListInBatches({
+  limit = BATCH_SIZE,
+  initialOffset = 0,
+} = {}) {
+  const client = getPgPool();
+  let offset = initialOffset;
+
+  while (true) {
+    const query = `
+    SELECT *
+    FROM ${MIGRATION_TABLE.TRIBE.TRIBES}
+    ORDER BY "createdAt" ASC, id::text ASC
+    LIMIT $1
+    OFFSET $2
+  `;
+
+    const { rows } = await client.query(query, [limit, offset]);
+    console.log("tribes list batch:", rows[0]);
 
     if (rows.length === 0) break;
 

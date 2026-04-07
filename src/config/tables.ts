@@ -15,6 +15,7 @@ export const MIGRATION_TABLE = {
   },
   TRIBE: {
     INVITES: "tbl_invites",
+    TRIBES: "tbl_tribes",
   },
   AUTH: {
     USERS: "tbl_users",

@@ -40,9 +40,10 @@ import {
 import {
   generateSlug,
   parseDateToTimestamp,
+  parseOffsetCheckpoint,
   splitFullName,
 } from "./utils/utils";
-import { fetchInvitesInBatches } from "./extractors/tribe_app";
+import { fetchInvitesInBatches, fetchTribeListInBatches } from "./extractors/tribe_app";
 import { mapInviteFieldsToConvex } from "./transformers/tribe-data";
 import {
   buildFallbackImpactAccountRecordsForBatch,
@@ -92,6 +93,7 @@ async function runMigration(): Promise<void> {
     // await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     await migrateTribeInvites();
+    await migrateTribeList();
     // await migrateImpactRecords();
     // await migrateFootPrints();
     // ---------------- End of first batch ----------------
@@ -112,24 +114,6 @@ async function runMigration(): Promise<void> {
 
 runMigration();
 
-/** Next row offset for tribe invites (OFFSET pagination checkpoint). */
-function parseInviteOffsetCheckpoint(raw: number | string | null): number {
-  if (raw == null) return 0;
-  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) {
-    return Math.floor(raw);
-  }
-  if (typeof raw === "string") {
-    try {
-      const o = JSON.parse(raw) as { offset?: number };
-      if (typeof o?.offset === "number" && Number.isFinite(o.offset) && o.offset >= 0) {
-        return Math.floor(o.offset);
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  return 0;
-}
 
 function resolveInviteAccountId(
   invite: Record<string, unknown>,
@@ -144,7 +128,7 @@ function resolveInviteAccountId(
 
 async function migrateTribeInvites() {
   const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
-  let nextOffset = parseInviteOffsetCheckpoint(getLastPrimaryKey(TABLE));
+  let nextOffset = parseOffsetCheckpoint(getLastPrimaryKey(TABLE));
 
   for await (const batch of fetchInvitesInBatches({
     limit: BATCH_SIZE,
@@ -168,6 +152,27 @@ async function migrateTribeInvites() {
   }
 
   console.log("✅ Tribe invites migration done");
+}
+
+async function migrateTribeList() {
+  const TABLE = MIGRATION_TABLE.TRIBE.TRIBES;
+  let nextOffset = parseOffsetCheckpoint(getLastPrimaryKey(TABLE));
+
+  for await (const batch of fetchTribeListInBatches({
+    limit: BATCH_SIZE,
+    initialOffset: nextOffset,
+  })) {
+    const records = batch.map((r) => r);
+    console.log("tribe list batch:", records[0]);
+
+    if (records.length > 0) {
+      await convex.mutation(api.migrations.bulkInsertTribes, {
+        records,
+      });
+    }
+  }
+
+  console.log("✅ Tribe list migration done");
 }
 
 // Calculator responses migration

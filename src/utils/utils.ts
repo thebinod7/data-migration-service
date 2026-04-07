@@ -16,3 +16,19 @@ export const parseDateToTimestamp = (date: string | Date): number => {
   const parsedDate = date instanceof Date ? date : new Date(date);
   return parsedDate.getTime();
 };
+
+
+export const parseOffsetCheckpoint = (raw: number | string | null): number => {
+  if (raw == null) return 0;
+
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0;
+  }
+
+  if (typeof raw === "string") {
+    const num = Number(raw);
+    return Number.isFinite(num) && num >= 0 ? Math.floor(num) : 0;
+  }
+
+  return 0;
+}
