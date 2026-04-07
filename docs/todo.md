@@ -16,3 +16,5 @@
 - Trials => ✅
 - CalculatorReponse => attemptNumber, scoreTotal, scoreBase, scoreByPage, referredBy, currentPage
 - ReferralCodes => ✅
+- Tribe
+- TribeMembership

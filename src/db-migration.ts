@@ -414,7 +414,7 @@ async function migrateBusinessAccounts() {
       maxIdInBatch = Number(p.id);
 
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
-      if (!ownerId) continue;
+      if (!ownerId) continue; // If user from WP not migrated
       if (ctx.ownerAccountTypes.get(ownerId)?.has("business")) continue;
       if (ownerIdsQueuedThisBatch.has(ownerId)) continue;
       ownerIdsQueuedThisBatch.add(ownerId);
