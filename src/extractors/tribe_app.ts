@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { MIGRATION_TABLE } from "../config/tables";
+import { BATCH_SIZE } from "../constants/contants";
 
 let pool: Pool | null = null;
 
@@ -19,43 +20,34 @@ export function getPgPool() {
 
 
 
-/** Cursor after the last successfully migrated row (tie-breaks equal createdAt). */
-export type InviteBatchCursor = { createdAt: Date; id: string };
-
 /**
- * Fetch invites in batches using (createdAt, id) cursor for stable pagination + checkpoints.
+ * Fetch invites in batches with OFFSET/LIMIT (stable order: createdAt, id).
+ * Pass `initialOffset` from checkpoint to resume.
  */
 export async function* fetchInvitesInBatches({
-  limit = 100,
-  cursor = null as InviteBatchCursor | null,
+  limit = BATCH_SIZE,
+  initialOffset = 0,
 } = {}) {
   const client = getPgPool();
+  let offset = initialOffset;
 
   while (true) {
     const query = `
     SELECT *
     FROM ${MIGRATION_TABLE.TRIBE.INVITES}
-    ${cursor
-        ? `WHERE ("createdAt", id::text) > ($2::timestamptz, $3::text)`
-        : ""
-      }
     ORDER BY "createdAt" ASC, id::text ASC
     LIMIT $1
+    OFFSET $2
   `;
 
-    const values = cursor ? [limit, cursor.createdAt, cursor.id] : [limit];
-
-    const { rows } = await client.query(query, values);
+    const { rows } = await client.query(query, [limit, offset]);
+    console.log("tribe invites batch:", rows.length);
 
     if (rows.length === 0) break;
 
     yield rows;
 
-    const last = rows[rows.length - 1];
-    cursor = {
-      createdAt: last.createdAt instanceof Date ? last.createdAt : new Date(last.createdAt),
-      id: String(last.id),
-    };
+    offset += rows.length;
   }
 }
 
@@ -117,6 +109,12 @@ export async function* extractTribeAppDataBatched(
 }
 
 export async function countPgRows(table: string): Promise<number> {
+  const pool = getPgPool();
+  const result = await pool.query(`SELECT COUNT(*) as count FROM "${table}"`);
+  return Number(result.rows[0].count);
+}
+
+async function findTotalRows(table: string): Promise<number> {
   const pool = getPgPool();
   const result = await pool.query(`SELECT COUNT(*) as count FROM "${table}"`);
   return Number(result.rows[0].count);

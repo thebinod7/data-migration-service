@@ -80,19 +80,18 @@ function registerOwnerAccountType(ownerId: string, type: OwnerAccountKind) {
 
 async function runMigration(): Promise<void> {
   try {
-    // await convex.mutation(api.migrations.wipeAllData);
     console.log("🔄 Starting migration...");
 
     // ---------------- First batch ----------------
-    await migrateUsersFromWordpress();
-    ctx.affiliateActiveByWpUserId =
-      await loadAffiliateAdvisorActiveByWpUserId();
-    await migratePersonalAccounts();
-    await migrateBusinessAccounts();
-    await migrateFallbackAccounts();
-    await migrateDefaultPersonalAccountsForStragglers();
+    // await migrateUsersFromWordpress();
+    // ctx.affiliateActiveByWpUserId =
+    //   await loadAffiliateAdvisorActiveByWpUserId();
+    // await migratePersonalAccounts();
+    // await migrateBusinessAccounts();
+    // await migrateFallbackAccounts();
+    // await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
-    // await migrateTribeInvites();
+    await migrateTribeInvites();
     // await migrateImpactRecords();
     // await migrateFootPrints();
     // ---------------- End of first batch ----------------
@@ -113,18 +112,23 @@ async function runMigration(): Promise<void> {
 
 runMigration();
 
-function parseInviteCheckpoint(
-  raw: number | string | null,
-): { createdAt: Date; id: string } | null {
-  if (raw == null) return null;
-  if (typeof raw === "number") return null;
-  try {
-    const o = JSON.parse(raw) as { createdAt?: string; id?: string };
-    if (o?.createdAt && o?.id) {
-      return { createdAt: new Date(o.createdAt), id: String(o.id) };
+/** Next row offset for tribe invites (OFFSET pagination checkpoint). */
+function parseInviteOffsetCheckpoint(raw: number | string | null): number {
+  if (raw == null) return 0;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) {
+    return Math.floor(raw);
+  }
+  if (typeof raw === "string") {
+    try {
+      const o = JSON.parse(raw) as { offset?: number };
+      if (typeof o?.offset === "number" && Number.isFinite(o.offset) && o.offset >= 0) {
+        return Math.floor(o.offset);
+      }
+    } catch {
+      /* ignore */
     }
-  } catch { }
-  return null;
+  }
+  return 0;
 }
 
 function resolveInviteAccountId(
@@ -140,24 +144,12 @@ function resolveInviteAccountId(
 
 async function migrateTribeInvites() {
   const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
-  const resumeCursor = parseInviteCheckpoint(getLastPrimaryKey(TABLE));
+  let nextOffset = parseInviteOffsetCheckpoint(getLastPrimaryKey(TABLE));
 
   for await (const batch of fetchInvitesInBatches({
     limit: BATCH_SIZE,
-    cursor: resumeCursor,
+    initialOffset: nextOffset,
   })) {
-    let checkpointAfter: { createdAt: Date; id: string } | null = null;
-
-    for (const row of batch) {
-      checkpointAfter = {
-        createdAt:
-          row.createdAt instanceof Date
-            ? row.createdAt
-            : new Date(row.createdAt),
-        id: String(row.id),
-      };
-    }
-
     const records = mapInviteFieldsToConvex(batch, resolveInviteAccountId);
 
     if (records.length > 0) {
@@ -166,20 +158,13 @@ async function migrateTribeInvites() {
       });
     }
 
+    nextOffset += batch.length;
+    // saveCheckpoint(TABLE, nextOffset);
+
     const skippedThisBatch = batch.length - records.length;
     console.log(
       `[Tribe invites] Inserted ${records.length} into Convex, ${skippedThisBatch} skipped.`,
     );
-
-    if (checkpointAfter) {
-      saveCheckpoint(
-        TABLE,
-        JSON.stringify({
-          createdAt: checkpointAfter.createdAt.toISOString(),
-          id: checkpointAfter.id,
-        }),
-      );
-    }
   }
 
   console.log("✅ Tribe invites migration done");

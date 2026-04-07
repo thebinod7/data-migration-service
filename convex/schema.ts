@@ -71,6 +71,16 @@ export default defineSchema({
     createdAt: v.number(),
   }),
 
+  tribeMemberships: defineTable({
+    accountId: v.id("accounts"),
+    tribeId: v.id("tribes"),
+    referredByAccountId: v.id("accounts"),
+    joinedAt: v.number(),
+  })
+    .index("by_accountId", ["accountId"])
+    .index("by_tribeId", ["tribeId"])
+    .index("by_referredByAccountId", ["referredByAccountId"]),
+
   referralCodes: defineTable({
     accountId: v.string(),
     code: v.string(),
