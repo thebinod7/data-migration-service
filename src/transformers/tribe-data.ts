@@ -45,6 +45,36 @@ export type TribeInsert = {
   createdAt: number;
 };
 
+/** Membership row for `bulkInsertTribesWithMemberships` (Convex accepts branded ids as strings). */
+export type TribeMembershipWithoutTribeIdInsert = {
+  accountId: string;
+  referredByAccountId: string;
+  joinedAt: number;
+};
+
+export type TribeWithMembershipInsert = {
+  tribe: TribeInsert;
+  membershipWithoutTribeId: TribeMembershipWithoutTribeIdInsert;
+};
+
+function mapTribeRowToInsert(
+  tribe: any,
+  resolveLeaderAccountId: (tribe: any) => string | null,
+): TribeInsert | null {
+  const leaderAccountId = resolveLeaderAccountId(tribe);
+  if (!leaderAccountId) return null;
+
+  const type =
+    tribe.type === "PROFESSIONAL" || tribe.type === "professional"
+      ? "business"
+      : "personal";
+
+  const createdAt = new Date(tribe.createdAt).getTime();
+  if (!Number.isFinite(createdAt)) return null;
+
+  return { leaderAccountId, type, createdAt };
+}
+
 /**
  * Maps tribe rows to Convex `tribes` documents.
  * `leaderAccountId` is the inviter's Convex account id; rows without a resolved leader are skipped.
@@ -57,18 +87,40 @@ export function mapTribeFieldsToConvex(
 
   const out: TribeInsert[] = [];
   for (const tribe of tribes) {
-    const leaderAccountId = resolveLeaderAccountId(tribe);
-    if (!leaderAccountId) continue;
+    const row = mapTribeRowToInsert(tribe, resolveLeaderAccountId);
+    if (!row) continue;
+    out.push(row);
+  }
+  return out;
+}
 
-    const type =
-      tribe.type === "PROFESSIONAL" || tribe.type === "professional"
-        ? "business"
-        : "personal";
+/**
+ * Maps tribe rows to `{ tribe, membershipWithoutTribeId }` for `bulkInsertTribesWithMemberships`.
+ * Skips rows without a resolved leader, without a resolved member account, or with a non-finite `createdAt`.
+ */
+export function mapTribeRowsToTribesWithMemberships(
+  tribes: any[],
+  resolveLeaderAccountId: (tribe: any) => string | null = () => null,
+  resolveMemberAccountId: (tribe: any) => string | null = () => null,
+): TribeWithMembershipInsert[] {
+  if (!tribes.length) return [];
 
-    const createdAt = new Date(tribe.createdAt).getTime();
-    if (!Number.isFinite(createdAt)) continue;
+  const out: TribeWithMembershipInsert[] = [];
+  for (const tribe of tribes) {
+    const tribeInsert = mapTribeRowToInsert(tribe, resolveLeaderAccountId);
+    if (!tribeInsert) continue;
 
-    out.push({ leaderAccountId, type, createdAt });
+    const accountId = resolveMemberAccountId(tribe);
+    if (!accountId) continue;
+
+    out.push({
+      tribe: tribeInsert,
+      membershipWithoutTribeId: {
+        accountId,
+        referredByAccountId: tribeInsert.leaderAccountId,
+        joinedAt: tribeInsert.createdAt,
+      },
+    });
   }
   return out;
 }

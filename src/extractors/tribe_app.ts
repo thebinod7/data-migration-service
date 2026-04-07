@@ -41,8 +41,6 @@ export async function* fetchInvitesInBatches({
   `;
 
     const { rows } = await client.query(query, [limit, offset]);
-    console.log("tribe invites batch:", rows[0]);
-
     if (rows.length === 0) break;
 
     yield rows;

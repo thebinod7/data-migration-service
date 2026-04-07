@@ -46,7 +46,7 @@ import {
 import { fetchInvitesInBatches, fetchTribeListInBatches } from "./extractors/tribe_app";
 import {
   mapInviteFieldsToConvex,
-  mapTribeFieldsToConvex,
+  mapTribeRowsToTribesWithMemberships,
 } from "./transformers/tribe-data";
 import {
   buildFallbackImpactAccountRecordsForBatch,
@@ -87,13 +87,13 @@ async function runMigration(): Promise<void> {
     console.log("🔄 Starting migration...");
 
     // ---------------- First batch ----------------
-    // await migrateUsersFromWordpress();
-    // ctx.affiliateActiveByWpUserId =
-    //   await loadAffiliateAdvisorActiveByWpUserId();
-    // await migratePersonalAccounts();
-    // await migrateBusinessAccounts();
-    // await migrateFallbackAccounts();
-    // await migrateDefaultPersonalAccountsForStragglers();
+    await migrateUsersFromWordpress();
+    ctx.affiliateActiveByWpUserId =
+      await loadAffiliateAdvisorActiveByWpUserId();
+    await migratePersonalAccounts();
+    await migrateBusinessAccounts();
+    await migrateFallbackAccounts();
+    await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     await migrateTribeInvites();
     await migrateTribeList();
@@ -141,6 +141,18 @@ function resolveTribeLeaderAccountId(
   return accounts?.[0] ?? null;
 }
 
+/** Tribe member is the WordPress user in `memberId`; map to their primary Convex account (same as invites). */
+function resolveTribeMemberAccountId(
+  tribe: Record<string, unknown>,
+): string | null {
+  const memberId = Number(tribe.memberId);
+  if (!Number.isFinite(memberId) || memberId <= 0) return null;
+  const convexUserId = ctx.wpIdToUserId.get(memberId);
+  if (!convexUserId) return null;
+  const accounts = ctx.userToAccounts.get(convexUserId);
+  return accounts?.[0] ?? null;
+}
+
 async function migrateTribeInvites() {
   const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
   let nextOffset = parseOffsetCheckpoint(getLastPrimaryKey(TABLE));
@@ -177,19 +189,42 @@ async function migrateTribeList() {
     limit: BATCH_SIZE,
     initialOffset: nextOffset,
   })) {
-    const records = mapTribeFieldsToConvex(batch, resolveTribeLeaderAccountId);
-    console.log("tribe list records:", records);
+    let skipNoLeader = 0;
+    let skipBadDate = 0;
+    let skipNoMember = 0;
+    for (const tribe of batch) {
+      if (!resolveTribeLeaderAccountId(tribe)) {
+        skipNoLeader++;
+        continue;
+      }
+      const createdAt = new Date(tribe.createdAt as string | Date).getTime();
+      if (!Number.isFinite(createdAt)) {
+        skipBadDate++;
+        continue;
+      }
+      if (!resolveTribeMemberAccountId(tribe)) {
+        skipNoMember++;
+        continue;
+      }
+    }
 
-    if (records.length > 0) {
-      await convex.mutation(api.migrations.bulkInsertTribes, {
-        records,
+    const items = mapTribeRowsToTribesWithMemberships(
+      batch,
+      resolveTribeLeaderAccountId,
+      resolveTribeMemberAccountId,
+    );
+
+    if (items.length > 0) {
+      await convex.mutation(api.migrations.bulkInsertTribesWithMemberships, {
+        items: items as any,
       });
     }
 
     nextOffset += batch.length;
-    const skippedThisBatch = batch.length - records.length;
+    saveCheckpoint(TABLE, nextOffset);
+    const skippedThisBatch = batch.length - items.length;
     console.log(
-      `[Tribe list] Inserted ${records.length} into Convex, ${skippedThisBatch} skipped (no leader account).`,
+      `[Tribe list] Inserted ${items.length} tribes+memberships into Convex, ${skippedThisBatch} skipped (no leader: ${skipNoLeader}, bad createdAt: ${skipBadDate}, no member account: ${skipNoMember}).`,
     );
   }
 
