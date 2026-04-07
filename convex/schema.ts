@@ -19,7 +19,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     activeAccountId: v.optional(v.string()),
-  }),
+  }).index("by_ssoUserId", ["ssoUserId"]),
 
   accounts: defineTable({
     ownerId: v.string(),

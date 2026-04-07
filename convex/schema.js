@@ -16,7 +16,7 @@ exports.default = (0, server_1.defineSchema)({
         createdAt: values_1.v.number(),
         updatedAt: values_1.v.number(),
         activeAccountId: values_1.v.optional(values_1.v.string()),
-    }),
+    }).index("by_ssoUserId", ["ssoUserId"]),
     accounts: (0, server_1.defineTable)({
         ownerId: values_1.v.string(),
         type: values_1.v.string(),

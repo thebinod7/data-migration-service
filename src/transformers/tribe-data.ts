@@ -39,13 +39,36 @@ export function mapInviteFieldsToConvex(
   return out;
 }
 
-export const mapTribeFieldsToConvex = (tribes: any[]) => {
-  if (!tribes.length) return [];
-  return tribes.map((tribe) => {
-    return {
-      leaderAccountId: "leader_account_101",
-      type: tribe.type === "PERSONAL" ? "personal" : "business",
-      createdAt: new Date(tribe.createdAt).getTime(),
-    };
-  });
+export type TribeInsert = {
+  leaderAccountId: string;
+  type: string;
+  createdAt: number;
 };
+
+/**
+ * Maps tribe rows to Convex `tribes` documents.
+ * `leaderAccountId` is the inviter's Convex account id; rows without a resolved leader are skipped.
+ */
+export function mapTribeFieldsToConvex(
+  tribes: any[],
+  resolveLeaderAccountId: (tribe: any) => string | null = () => null,
+): TribeInsert[] {
+  if (!tribes.length) return [];
+
+  const out: TribeInsert[] = [];
+  for (const tribe of tribes) {
+    const leaderAccountId = resolveLeaderAccountId(tribe);
+    if (!leaderAccountId) continue;
+
+    const type =
+      tribe.type === "PROFESSIONAL" || tribe.type === "professional"
+        ? "business"
+        : "personal";
+
+    const createdAt = new Date(tribe.createdAt).getTime();
+    if (!Number.isFinite(createdAt)) continue;
+
+    out.push({ leaderAccountId, type, createdAt });
+  }
+  return out;
+}

@@ -38,7 +38,8 @@ export async function writeTribeAppDataBached(
   }
   if (sourceTable === "tbl_tribes") {
     console.log("Writing tribes to convex==>", documents.length);
-    const mappedData = mapTribeFieldsToConvex(documents);
+    const mappedData = mapTribeFieldsToConvex(documents, () => null);
+    if (mappedData.length === 0) return;
     return convex.mutation(api.migrations.bulkInsertTribes, {
       records: mappedData,
     });

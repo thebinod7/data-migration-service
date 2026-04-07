@@ -1,5 +1,12 @@
 import { v } from "convex/values";
-import { mutation, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import {
+  internalQuery,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 
 /** Matches main app `profileSections` table (see migration.md §5). */
 const PROFILE_SECTIONS_TABLE = "profileSections" as const;
@@ -141,6 +148,75 @@ export const bulkInsertTribes = mutation({
       await ctx.db.insert("tribes", record);
     }
   },
+});
+
+const tribeRowValidator = v.object({
+  leaderAccountId: v.string(),
+  type: v.string(),
+  createdAt: v.number(),
+});
+
+const tribeMembershipWithoutTribeIdValidator = v.object({
+  accountId: v.id("accounts"),
+  referredByAccountId: v.id("accounts"),
+  joinedAt: v.number(),
+});
+
+export const bulkInsertTribesWithMemberships = mutation({
+  args: {
+    items: v.array(
+      v.object({
+        tribe: tribeRowValidator,
+        membershipWithoutTribeId: tribeMembershipWithoutTribeIdValidator,
+      }),
+    ),
+  },
+  handler: async (ctx, { items }) => {
+    for (const { tribe, membershipWithoutTribeId } of items) {
+      const tribeId = await ctx.db.insert("tribes", tribe);
+      await ctx.db.insert("tribeMemberships", {
+        ...membershipWithoutTribeId,
+        tribeId,
+      });
+    }
+  },
+});
+
+async function lookupUsersBySsoUserIds(
+  ctx: QueryCtx,
+  ssoUserIds: string[],
+): Promise<{ ssoUserId: string; userId: Id<"users"> }[]> {
+  const seen = new Set<string>();
+  const out: { ssoUserId: string; userId: Id<"users"> }[] = [];
+  for (const raw of ssoUserIds) {
+    const ssoUserId = raw.trim();
+    if (!ssoUserId || seen.has(ssoUserId)) continue;
+    seen.add(ssoUserId);
+    const doc = await ctx.db
+      .query("users")
+      .withIndex("by_ssoUserId", (q) => q.eq("ssoUserId", ssoUserId))
+      .first();
+    if (doc) out.push({ ssoUserId, userId: doc._id });
+  }
+  return out;
+}
+
+const batchLookupUsersBySsoUserIdsArgs = {
+  ssoUserIds: v.array(v.string()),
+};
+
+/** Public: migration scripts (ConvexHttpClient) can resolve Auth cuids stored in `users.ssoUserId`. */
+export const batchLookupUsersBySsoUserIds = query({
+  args: batchLookupUsersBySsoUserIdsArgs,
+  handler: async (ctx, { ssoUserIds }) =>
+    lookupUsersBySsoUserIds(ctx, ssoUserIds),
+});
+
+/** Internal: same lookup for Convex-to-Convex callers. */
+export const batchLookupUsersBySsoUserIdsInternal = internalQuery({
+  args: batchLookupUsersBySsoUserIdsArgs,
+  handler: async (ctx, { ssoUserIds }) =>
+    lookupUsersBySsoUserIds(ctx, ssoUserIds),
 });
 
 export const bulkInsertReferralCodes = mutation({

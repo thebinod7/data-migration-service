@@ -44,7 +44,10 @@ import {
   splitFullName,
 } from "./utils/utils";
 import { fetchInvitesInBatches, fetchTribeListInBatches } from "./extractors/tribe_app";
-import { mapInviteFieldsToConvex } from "./transformers/tribe-data";
+import {
+  mapInviteFieldsToConvex,
+  mapTribeFieldsToConvex,
+} from "./transformers/tribe-data";
 import {
   buildFallbackImpactAccountRecordsForBatch,
   buildMinimalPersonalImpactAccount,
@@ -126,6 +129,18 @@ function resolveInviteAccountId(
   return accounts?.[0] ?? null;
 }
 
+/** Tribe leader is the WordPress user in `invitedBy`; map to their primary Convex account. */
+function resolveTribeLeaderAccountId(
+  tribe: Record<string, unknown>,
+): string | null {
+  const invitedByWpId = Number(tribe.invitedBy);
+  if (!Number.isFinite(invitedByWpId) || invitedByWpId <= 0) return null;
+  const convexUserId = ctx.wpIdToUserId.get(invitedByWpId);
+  if (!convexUserId) return null;
+  const accounts = ctx.userToAccounts.get(convexUserId);
+  return accounts?.[0] ?? null;
+}
+
 async function migrateTribeInvites() {
   const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
   let nextOffset = parseOffsetCheckpoint(getLastPrimaryKey(TABLE));
@@ -162,14 +177,20 @@ async function migrateTribeList() {
     limit: BATCH_SIZE,
     initialOffset: nextOffset,
   })) {
-    const records = batch.map((r) => r);
-    console.log("tribe list batch:", records[0]);
+    const records = mapTribeFieldsToConvex(batch, resolveTribeLeaderAccountId);
+    console.log("tribe list records:", records);
 
     if (records.length > 0) {
       await convex.mutation(api.migrations.bulkInsertTribes, {
         records,
       });
     }
+
+    nextOffset += batch.length;
+    const skippedThisBatch = batch.length - records.length;
+    console.log(
+      `[Tribe list] Inserted ${records.length} into Convex, ${skippedThisBatch} skipped (no leader account).`,
+    );
   }
 
   console.log("✅ Tribe list migration done");
@@ -225,8 +246,6 @@ async function migrateFootPrints() {
         updatedAt,
       });
     }
-
-    console.log("Footprints RECORDS==>", records[0]);
 
     if (records.length > 0) {
       await convex.mutation(api.migrations.bulkInsertCalculatorResponses, {
