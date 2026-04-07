@@ -12,6 +12,11 @@ import {
   listPersonalImpactPages,
 } from "./extractors/certificate_app";
 import {
+  closeAuthPgPool,
+  fetchCuidByEmails,
+  normalizeAuthEmail,
+} from "./extractors/auth_app";
+import {
   closeWordpressMysqlPool,
   getFootprintScoresByPostIds,
   listFootPrints,
@@ -102,6 +107,7 @@ async function runMigration(): Promise<void> {
   } finally {
     await closeWordpressMysqlPool();
     await closeCertificateMysqlPool();
+    await closeAuthPgPool();
   }
 }
 
@@ -633,13 +639,19 @@ async function migrateUsersFromWordpress() {
   for await (const batch of listWpUsers(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
 
+    const cuidByEmail = await fetchCuidByEmails(
+      batch.map((wp: any) => String(wp.user_email ?? "")),
+    );
+
     const users = batch.map((wp: any) => {
       const { firstName, lastName } = splitFullName(
         wp.display_name || wp.user_login,
       );
       maxIdInBatch = Number(wp.ID);
+      const normalizedEmail = normalizeAuthEmail(wp.user_email ?? "");
       return {
-        ssoUserId: `wp-${wp.ID}`, // TODO: get ssoId from Auth Server
+        ssoUserId:
+          cuidByEmail.get(normalizedEmail) ?? '',
         email: wp.user_email,
         firstName: firstName,
         lastName: lastName,

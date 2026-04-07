@@ -7,7 +7,7 @@
 
 ==========Fields remaining by table===============
 
-- Users => ssoUserId
+- Users => ssoUserId ✅
 - Account => isActiveAdvisor ✅
 - AccountMembership => ✅
 - AccountProfile => logo = business ? logo : profilePic

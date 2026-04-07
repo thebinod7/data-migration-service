@@ -22,6 +22,9 @@ export const config = {
     password: process.env.PG_PASSWORD!,
     database: process.env.PG_DATABASE!,
   },
+  auth_db: {
+    url: process.env.AUTH_DB_URL!,
+  },
   convex: {
     deploymentUrl: process.env.CONVEX_URL!,
     adminKey: process.env.CONVEX_ADMIN_KEY!,

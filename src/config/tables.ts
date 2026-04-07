@@ -13,8 +13,10 @@ export const MIGRATION_TABLE = {
     CAMPAIGNS: "campaigns",
     IMPACT_TRIAL_DATES: "impact_trial_dates",
   },
-  /** Postgres tribe-api; checkpoint for invites stores JSON cursor `{ createdAtIso, id }`. */
   TRIBE: {
     INVITES: "tbl_invites",
+  },
+  AUTH: {
+    USERS: "tbl_users",
   },
 };
