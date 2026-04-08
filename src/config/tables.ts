@@ -12,6 +12,7 @@ export const MIGRATION_TABLE = {
     CAMPAIGN_RECIPIENT_METAS: "campaign_recipient_metas",
     CAMPAIGNS: "campaigns",
     IMPACT_TRIAL_DATES: "impact_trial_dates",
+    IMAGE_TEMPLATES: "image_templates",
   },
   TRIBE: {
     INVITES: "tbl_invites",

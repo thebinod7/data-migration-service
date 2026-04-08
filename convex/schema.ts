@@ -3,6 +3,72 @@ import { v } from "convex/values";
 
 /** Keeps migration Convex deployment aligned with tables written in `migrations.ts`. */
 export default defineSchema({
+  storedFiles: defineTable({
+    storageId: v.id("_storage"),
+  }),
+
+  templates: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    description: v.string(),
+    backgroundImageId: v.optional(v.id("storedFiles")),
+    width: v.number(),
+    height: v.number(),
+    textFields: v.array(
+      v.object({
+        fieldId: v.string(),
+        x: v.number(),
+        y: v.number(),
+        fontSize: v.number(),
+        fontFamily: v.string(),
+        fontColor: v.string(),
+        textAlign: v.union(
+          v.literal("left"),
+          v.literal("center"),
+          v.literal("right"),
+        ),
+        maxWidth: v.optional(v.number()),
+      }),
+    ),
+    certificatePrefix: v.string(),
+    supportedLanguages: v.array(v.string()),
+    isActive: v.boolean(),
+    isRetired: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_isActive", ["isActive"]),
+
+  programs: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    description: v.string(),
+    defaultTemplateId: v.id("templates"),
+    defaultRegion: v.optional(v.string()),
+    goalAmountKg: v.optional(v.number()),
+    goalDeadline: v.optional(v.number()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_isActive", ["isActive"]),
+
+  products: defineTable({
+    woocommerceProductId: v.string(),
+    programId: v.id("programs"),
+    region: v.optional(v.string()),
+    templateId: v.optional(v.id("templates")),
+    isBusinessProduct: v.boolean(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_woocommerceProductId", ["woocommerceProductId"])
+    .index("by_programId", ["programId"])
+    .index("by_isActive", ["isActive"]),
+
   users: defineTable({
     ssoUserId: v.string(),
     wordpressUserId: v.number(),

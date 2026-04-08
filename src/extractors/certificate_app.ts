@@ -205,6 +205,35 @@ export async function* listImpactTrialDates(
   }
 }
 
+export async function* listImageTemplates(
+  lastSeenId: number = 0,
+  batchSize: number = BATCH_SIZE,
+): AsyncGenerator<Record<string, unknown>[]> {
+  const pool = getMysqlPool();
+
+  let currentId = Math.max(0, Number(lastSeenId) || 0);
+  const limit = Math.max(1, Number(batchSize) || 5);
+
+  while (true) {
+    const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+      `
+      SELECT *
+      FROM ${MIGRATION_TABLE.LARAVEL.IMAGE_TEMPLATES}
+      WHERE id > ?
+      ORDER BY id ASC
+      LIMIT ${limit}
+      `,
+      [currentId],
+    );
+
+    const batch = rows as Record<string, unknown>[];
+
+    if (batch.length === 0) break;
+    yield batch;
+    currentId = batch[batch.length - 1].id as number;
+  }
+}
+
 export async function* listPersonalImpactPages(
   lastSeenId: number = 0,
   batchSize: number = BATCH_SIZE,
