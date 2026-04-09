@@ -12,7 +12,7 @@
 - AccountMembership => ✅
 - AccountProfile => logo = business ? logo : profilePic
 - ProfileSection => config
-- ImpactRecords => programId, templateId, source
+- ImpactRecords => source + map programId and templateId
 - Trials => ✅
 - CalculatorReponse => attemptNumber, scoreTotal, scoreBase, scoreByPage, referredBy, currentPage
 - ReferralCodes => ✅
