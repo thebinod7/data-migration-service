@@ -13,6 +13,8 @@ const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 async function runSetup(): Promise<void> {
     await setupTemplates();
+
+    console.log("✅ PRE-MIGRATION SETUP COMPLETED!!!");
 }
 
 async function setupTemplates() {
