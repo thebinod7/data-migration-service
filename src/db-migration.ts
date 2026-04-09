@@ -87,13 +87,13 @@ async function runMigration(): Promise<void> {
     console.log("🔄 Starting migration...");
 
     // ---------------- First batch ----------------
-    // await migrateUsersFromWordpress();
-    // ctx.affiliateActiveByWpUserId =
-    //   await loadAffiliateAdvisorActiveByWpUserId();
-    // await migratePersonalAccounts();
-    // await migrateBusinessAccounts();
-    // await migrateFallbackAccounts();
-    // await migrateDefaultPersonalAccountsForStragglers();
+    await migrateUsersFromWordpress();
+    ctx.affiliateActiveByWpUserId =
+      await loadAffiliateAdvisorActiveByWpUserId();
+    await migratePersonalAccounts();
+    await migrateBusinessAccounts();
+    await migrateFallbackAccounts();
+    await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
@@ -406,6 +406,7 @@ async function migrateTrials() {
 }
 
 async function migrateImpactRecords() {
+  console.log("🔄 Migrating impact records...");
   const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
@@ -415,16 +416,15 @@ async function migrateImpactRecords() {
     maxIdInBatch = batch[batch.length - 1].id as number;
 
     const enriched = await enrichCampaignRecipientBatch(batch);
-    console.log("Enriched=>", enriched)
     const records = mapEnrichedRecipientsToImpactRecords(enriched, {
       emailToUserId: ctx.emailToUserId,
       resolveAccountId: resolveImpactRecordAccountId,
     });
 
     if (records.length > 0) {
-      // await convex.mutation(api.migrations.bulkInsertImpactRecords, {
-      //   records,
-      // });
+      await convex.mutation(api.migrations.bulkInsertImpactRecords, {
+        records,
+      });
     }
 
     const insertedIntoConvex = records.length;

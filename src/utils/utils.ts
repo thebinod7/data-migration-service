@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
+import { LOCAL_JSON_MAP } from "../constants/contants";
+
 export const splitFullName = (
   fullName: string,
 ): { firstName: string; lastName: string } => {
@@ -20,15 +24,19 @@ export const parseDateToTimestamp = (date: string | Date): number => {
 
 export const parseOffsetCheckpoint = (raw: number | string | null): number => {
   if (raw == null) return 0;
-
   if (typeof raw === "number") {
     return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0;
   }
-
   if (typeof raw === "string") {
     const num = Number(raw);
     return Number.isFinite(num) && num >= 0 ? Math.floor(num) : 0;
   }
-
   return 0;
+}
+
+
+export const readProgramIdsBySlug = (): Record<string, string> => {
+  const filePath = path.resolve(process.cwd(), LOCAL_JSON_MAP.PROGRAMS_BY_SLUG);
+  const data = fs.readFileSync(filePath, 'utf8');
+  return JSON.parse(data);
 }

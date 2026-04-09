@@ -7,15 +7,10 @@ import { api } from "../convex/_generated/api";
 import { listCampaigns, listImageTemplates } from "./extractors/certificate_app";
 import { MIGRATION_TABLE } from "./config/tables";
 import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
-import { BATCH_SIZE } from "./constants/contants";
+import { BATCH_SIZE, LOCAL_JSON_MAP } from "./constants/contants";
 import { CertificateTemplateSourceRow, mapCampaignsRowsToConvexPrograms, mapCertificateTemplateRowsToConvexTemplates } from "./transformers/certificate-data";
 
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
-
-const LOCAL_MAP = {
-    PROGRAMS_BY_SLUG: 'programs-by-slug.json',
-    TEMPLATES_BY_SLUG: 'templates-by-slug.json',
-}
 
 
 async function runSetup(): Promise<void> {
@@ -48,7 +43,7 @@ async function setupTemplates() {
 }
 
 function writeProgramIdsBySlug(programIdsBySlug: Record<string, string>): void {
-    const outPath = path.resolve(process.cwd(), LOCAL_MAP.PROGRAMS_BY_SLUG);
+    const outPath = path.resolve(process.cwd(), LOCAL_JSON_MAP.PROGRAMS_BY_SLUG);
     fs.writeFileSync(
         outPath,
         JSON.stringify(programIdsBySlug, null, 2),

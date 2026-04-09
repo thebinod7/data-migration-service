@@ -5,7 +5,7 @@ import {
   contributionKindFromCampaignTypeId,
   type ContributionKind,
 } from "./campaignContributionKind";
-import { parseDateToTimestamp } from "./utils";
+import { parseDateToTimestamp, readProgramIdsBySlug } from "./utils";
 
 /** Laravel `campaign_type_id` → Convex program id (replace with real Convex ids). */
 const PROGRAM_ID_BY_LARAVEL_TYPE: Record<number, string> = {
@@ -79,13 +79,12 @@ function impactIdForRow(createdAtMs: number): string {
 }
 
 function lookupProgramId(campaign: Record<string, unknown> | null): string {
-  const typeId = Number(campaign?.campaign_type_id);
-  if (Number.isFinite(typeId) && typeId > 0) {
-    return (
-      PROGRAM_ID_BY_LARAVEL_TYPE[typeId] ?? DEFAULT_PROGRAM_ID
-    );
+  const programIdsBySlug = readProgramIdsBySlug();
+  const slug = campaign?.slug;
+  if (slug != null && String(slug).trim() !== "") {
+    return programIdsBySlug[String(slug).trim()] ?? "";
   }
-  return DEFAULT_PROGRAM_ID;
+  return "";
 }
 
 function lookupTemplateId(campaign: Record<string, unknown> | null): string {
