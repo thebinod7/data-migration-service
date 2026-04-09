@@ -47,6 +47,23 @@ export type ConvexTemplateInsert = {
   updatedAt: number;
 };
 
+/** Convex `programs` document fields for insert (matches convex/schema.ts). */
+export type ConvexProgramInsert = {
+  slug: string;
+  name: string;
+  description: string;
+  defaultTemplateId: Id<"templates">;
+  defaultRegion?: string;
+  goalAmountKg?: number;
+  goalDeadline?: number;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+const DEFAULT_PROGRAM_TEMPLATE_ID =
+  "mh7t98nf7qntv8fa95hhn14wd584gbz7" as Id<"templates">;
+
 function toMillis(value: Date | string | null | undefined): number | null {
   if (value == null) return null;
   const t = value instanceof Date ? value.getTime() : new Date(value).getTime();
@@ -92,7 +109,7 @@ export const mapUsersFieldsToConvexAccount = (users: any[]) => {
   return users.map((user) => {
     return {
       name: user.name,
-      type: user.type, // TODO: personal or business??
+      type: user.type,
       slug: generateSlug(), // TODO: fix slug
       ownerId: String(user.id),
       createdAt: new Date(user.created_at).getTime(),
@@ -103,4 +120,25 @@ export const mapUsersFieldsToConvexAccount = (users: any[]) => {
 
 const generateSlug = () => {
   return Math.random().toString(36).substring(2, 15);
+};
+
+export const mapCampaignsRowsToConvexPrograms = (
+  rows: any[],
+): ConvexProgramInsert[] => {
+  if (!rows.length) return [];
+
+  return rows.map((row) => {
+    const createdAt = toMillis(row.created_at) ?? Date.now();
+    const updatedAt = toMillis(row.updated_at) ?? createdAt;
+
+    return {
+      slug: String(row.slug),
+      name: String(row.name),
+      description: row.description || "",
+      defaultTemplateId: DEFAULT_PROGRAM_TEMPLATE_ID,
+      isActive: row.status === "running",
+      createdAt,
+      updatedAt,
+    };
+  });
 };

@@ -2,6 +2,9 @@
   "tables": {
     "image_templates": {
       "lastPrimaryKey": 155
+    },
+    "campaigns": {
+      "lastPrimaryKey": 46
     }
   }
 }

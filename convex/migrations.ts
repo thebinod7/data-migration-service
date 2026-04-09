@@ -27,6 +27,28 @@ const templateTextFieldValidator = v.object({
   maxWidth: v.optional(v.number()),
 });
 
+export const bulkInsertPrograms = mutation({
+  args: {
+    records: v.array(v.object({
+      slug: v.string(),
+      name: v.string(),
+      description: v.string(),
+      defaultTemplateId: v.id("templates"),
+      defaultRegion: v.optional(v.string()),
+      goalAmountKg: v.optional(v.number()),
+      goalDeadline: v.optional(v.number()),
+      isActive: v.boolean(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })),
+  },
+  handler: async (ctx, { records }) => {
+    await Promise.all(
+      records.map((record) => ctx.db.insert("programs", record)),
+    );
+  },
+});
+
 export const bulkInsertImageTemplates = mutation({
   args: {
     records: v.array(
