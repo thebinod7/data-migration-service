@@ -4,6 +4,62 @@ const server_1 = require("convex/server");
 const values_1 = require("convex/values");
 /** Keeps migration Convex deployment aligned with tables written in `migrations.ts`. */
 exports.default = (0, server_1.defineSchema)({
+    storedFiles: (0, server_1.defineTable)({
+        storageId: values_1.v.id("_storage"),
+    }),
+    templates: (0, server_1.defineTable)({
+        slug: values_1.v.string(),
+        name: values_1.v.string(),
+        description: values_1.v.string(),
+        backgroundImageId: values_1.v.optional(values_1.v.id("storedFiles")),
+        width: values_1.v.number(),
+        height: values_1.v.number(),
+        textFields: values_1.v.array(values_1.v.object({
+            fieldId: values_1.v.string(),
+            x: values_1.v.number(),
+            y: values_1.v.number(),
+            fontSize: values_1.v.number(),
+            fontFamily: values_1.v.string(),
+            fontColor: values_1.v.string(),
+            textAlign: values_1.v.union(values_1.v.literal("left"), values_1.v.literal("center"), values_1.v.literal("right")),
+            maxWidth: values_1.v.optional(values_1.v.number()),
+        })),
+        certificatePrefix: values_1.v.string(),
+        supportedLanguages: values_1.v.array(values_1.v.string()),
+        isActive: values_1.v.boolean(),
+        isRetired: values_1.v.boolean(),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_slug", ["slug"])
+        .index("by_isActive", ["isActive"]),
+    programs: (0, server_1.defineTable)({
+        slug: values_1.v.string(),
+        name: values_1.v.string(),
+        description: values_1.v.string(),
+        defaultTemplateId: values_1.v.id("templates"),
+        defaultRegion: values_1.v.optional(values_1.v.string()),
+        goalAmountKg: values_1.v.optional(values_1.v.number()),
+        goalDeadline: values_1.v.optional(values_1.v.number()),
+        isActive: values_1.v.boolean(),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_slug", ["slug"])
+        .index("by_isActive", ["isActive"]),
+    products: (0, server_1.defineTable)({
+        woocommerceProductId: values_1.v.string(),
+        programId: values_1.v.id("programs"),
+        region: values_1.v.optional(values_1.v.string()),
+        templateId: values_1.v.optional(values_1.v.id("templates")),
+        isBusinessProduct: values_1.v.boolean(),
+        isActive: values_1.v.boolean(),
+        createdAt: values_1.v.number(),
+        updatedAt: values_1.v.number(),
+    })
+        .index("by_woocommerceProductId", ["woocommerceProductId"])
+        .index("by_programId", ["programId"])
+        .index("by_isActive", ["isActive"]),
     users: (0, server_1.defineTable)({
         ssoUserId: values_1.v.string(),
         wordpressUserId: values_1.v.number(),
@@ -58,6 +114,15 @@ exports.default = (0, server_1.defineSchema)({
         type: values_1.v.string(),
         createdAt: values_1.v.number(),
     }),
+    tribeMemberships: (0, server_1.defineTable)({
+        accountId: values_1.v.id("accounts"),
+        tribeId: values_1.v.id("tribes"),
+        referredByAccountId: values_1.v.id("accounts"),
+        joinedAt: values_1.v.number(),
+    })
+        .index("by_accountId", ["accountId"])
+        .index("by_tribeId", ["tribeId"])
+        .index("by_referredByAccountId", ["referredByAccountId"]),
     referralCodes: (0, server_1.defineTable)({
         accountId: values_1.v.string(),
         code: values_1.v.string(),

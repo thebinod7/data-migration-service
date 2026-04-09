@@ -12,6 +12,48 @@ import {
 const PROFILE_SECTIONS_TABLE = "profileSections" as const;
 const HARDCODED_PROFILE_SECTION_CONFIG: Record<string, never> = {};
 
+const templateTextFieldValidator = v.object({
+  fieldId: v.string(),
+  x: v.number(),
+  y: v.number(),
+  fontSize: v.number(),
+  fontFamily: v.string(),
+  fontColor: v.string(),
+  textAlign: v.union(
+    v.literal("left"),
+    v.literal("center"),
+    v.literal("right"),
+  ),
+  maxWidth: v.optional(v.number()),
+});
+
+export const bulkInsertImageTemplates = mutation({
+  args: {
+    records: v.array(
+      v.object({
+        slug: v.string(),
+        name: v.string(),
+        description: v.string(),
+        backgroundImageId: v.optional(v.id("storedFiles")),
+        width: v.number(),
+        height: v.number(),
+        textFields: v.array(templateTextFieldValidator),
+        certificatePrefix: v.string(),
+        supportedLanguages: v.array(v.string()),
+        isActive: v.boolean(),
+        isRetired: v.boolean(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+      }),
+    ),
+  },
+  handler: async (ctx, { records }) => {
+    await Promise.all(
+      records.map((record) => ctx.db.insert("templates", record)),
+    );
+  },
+});
+
 export const bulkPatchUserAccountId = mutation({
   args: {
     patches: v.array(

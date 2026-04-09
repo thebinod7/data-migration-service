@@ -212,7 +212,7 @@ export async function* listImageTemplates(
   const pool = getMysqlPool();
 
   let currentId = Math.max(0, Number(lastSeenId) || 0);
-  const limit = Math.max(1, Number(batchSize) || 5);
+  const limit = Math.max(1, Number(batchSize) || BATCH_SIZE);
 
   while (true) {
     const [rows] = await pool.execute<mysql.RowDataPacket[]>(

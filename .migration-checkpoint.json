@@ -1,1 +1,7 @@
-{}
+{
+  "tables": {
+    "image_templates": {
+      "lastPrimaryKey": 155
+    }
+  }
+}
