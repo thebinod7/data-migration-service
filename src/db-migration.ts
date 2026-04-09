@@ -87,17 +87,17 @@ async function runMigration(): Promise<void> {
     console.log("🔄 Starting migration...");
 
     // ---------------- First batch ----------------
-    await migrateUsersFromWordpress();
-    ctx.affiliateActiveByWpUserId =
-      await loadAffiliateAdvisorActiveByWpUserId();
-    await migratePersonalAccounts();
-    await migrateBusinessAccounts();
-    await migrateFallbackAccounts();
-    await migrateDefaultPersonalAccountsForStragglers();
+    // await migrateUsersFromWordpress();
+    // ctx.affiliateActiveByWpUserId =
+    //   await loadAffiliateAdvisorActiveByWpUserId();
+    // await migratePersonalAccounts();
+    // await migrateBusinessAccounts();
+    // await migrateFallbackAccounts();
+    // await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
-    await migrateTribeInvites();
-    await migrateTribeList();
-    // await migrateImpactRecords();
+    // await migrateTribeInvites();
+    // await migrateTribeList();
+    await migrateImpactRecords();
     // await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
@@ -412,20 +412,19 @@ async function migrateImpactRecords() {
   for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
 
-    for (const r of batch) {
-      maxIdInBatch = Number(r.id);
-    }
+    maxIdInBatch = batch[batch.length - 1].id as number;
 
     const enriched = await enrichCampaignRecipientBatch(batch);
+    console.log("Enriched=>", enriched)
     const records = mapEnrichedRecipientsToImpactRecords(enriched, {
       emailToUserId: ctx.emailToUserId,
       resolveAccountId: resolveImpactRecordAccountId,
     });
 
     if (records.length > 0) {
-      await convex.mutation(api.migrations.bulkInsertImpactRecords, {
-        records,
-      });
+      // await convex.mutation(api.migrations.bulkInsertImpactRecords, {
+      //   records,
+      // });
     }
 
     const insertedIntoConvex = records.length;

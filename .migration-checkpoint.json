@@ -1,1 +1,10 @@
-{}
+{
+  "tables": {
+    "campaign_recipients": {
+      "lastPrimaryKey": 7162
+    },
+    "campaigns": {
+      "lastPrimaryKey": 46
+    }
+  }
+}

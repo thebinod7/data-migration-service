@@ -3,3 +3,7 @@ dist/
 .pnpm-store/
 
 .env*
+
+# Local JSON mapping
+programs-by-slug.json
+templates-by-slug.json

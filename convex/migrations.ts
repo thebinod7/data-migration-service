@@ -43,8 +43,11 @@ export const bulkInsertPrograms = mutation({
     })),
   },
   handler: async (ctx, { records }) => {
-    await Promise.all(
-      records.map((record) => ctx.db.insert("programs", record)),
+    return Promise.all(
+      records.map(async (record) => {
+        const programId = await ctx.db.insert("programs", record);
+        return { slug: record.slug, programId };
+      }),
     );
   },
 });
