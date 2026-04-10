@@ -7,7 +7,6 @@ import {
   type FootprintAttemptRow,
 } from "../transformers/footprint-attempt";
 
-const FOOTPRINT_SCORE_META_KEY = "footprint_score";
 let pool: mysql.Pool | null = null;
 
 export function getMysqlPool(): mysql.Pool {
@@ -219,39 +218,3 @@ export async function loadAffiliateAdvisorActiveByWpUserId(): Promise<
   return byWpUserId;
 }
 
-/**
- * Batch-load `footprint_score` postmeta for the given post IDs (one query per call).
- * If multiple rows exist for the same post_id, the last row in the result set wins.
- */
-export async function getFootprintScoresByPostIds(
-  postIds: number[],
-): Promise<Map<number, number>> {
-  const byPostId = new Map<number, number>();
-  const ids = postIds
-    .map((id) => Number(id))
-    .filter((id) => Number.isFinite(id) && id > 0);
-  if (ids.length === 0) return byPostId;
-
-  const pool = getMysqlPool();
-  const placeholders = ids.map(() => "?").join(", ");
-  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-    `
-    SELECT post_id, meta_value
-    FROM \`${MIGRATION_TABLE.WORDPRESS.POSTMETA}\`
-    WHERE meta_key = ?
-      AND post_id IN (${placeholders})
-    `,
-    [FOOTPRINT_SCORE_META_KEY, ...ids],
-  );
-
-  for (const row of rows) {
-    const postId = Number(row.post_id);
-    if (!Number.isFinite(postId) || postId <= 0) continue;
-    const raw = row.meta_value;
-    const parsed =
-      typeof raw === "string" ? parseFloat(raw.trim()) : Number(raw);
-    if (Number.isFinite(parsed)) byPostId.set(postId, parsed);
-  }
-
-  return byPostId;
-}

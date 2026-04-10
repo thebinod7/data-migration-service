@@ -18,7 +18,6 @@ import {
 } from "./extractors/auth_app";
 import {
   closeWordpressMysqlPool,
-  getFootprintScoresByPostIds,
   listFootPrints,
   listWpUsers,
   loadAffiliateAdvisorActiveByWpUserId,
@@ -97,8 +96,8 @@ async function runMigration(): Promise<void> {
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
-    await migrateImpactRecords();
-    // await migrateFootPrints();
+    // await migrateImpactRecords();
+    // await migrateFootPrints(); 
     // ---------------- End of first batch ----------------
 
     console.log("✅ MIGRATION COMPLETED!!!");
@@ -239,11 +238,6 @@ async function migrateFootPrints() {
   for await (const batch of listFootPrints(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
 
-    const postIds = batch
-      .map((r) => Number(r.ID))
-      .filter((id) => Number.isFinite(id) && id > 0);
-    const scoresByPostId = await getFootprintScoresByPostIds(postIds);
-
     const records: any[] = [];
 
     for (const row of batch) {
@@ -263,7 +257,7 @@ async function migrateFootPrints() {
         row as PlasticFootprintPostRow,
         {
           attemptNumber: 1,
-          scoreTotalFromMeta: scoresByPostId.get(postId),
+          scoreTotalFromMeta: "",
         },
       );
       if (!payload) continue;
