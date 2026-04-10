@@ -11,4 +11,5 @@ export const AFFILIATE_STATUS_ACTIVE = "active";
 export const LOCAL_JSON_MAP = {
   PROGRAMS_BY_SLUG: 'programs-by-slug.json',
   TEMPLATES_BY_SLUG: 'templates-by-slug.json',
+  CAMPAIGN_TYPES_ID_TO_SLUG: 'campaign-types-id-to-slug.json',
 }

@@ -4,7 +4,7 @@ import path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 
-import { listCampaigns, listImageTemplates } from "./extractors/certificate_app";
+import { listAllCampagnTypes, listCampaigns, listImageTemplates } from "./extractors/certificate_app";
 import { MIGRATION_TABLE } from "./config/tables";
 import { getLastPrimaryKey } from "./utils/checkpoint";
 import { BATCH_SIZE, LOCAL_JSON_MAP } from "./constants/contants";
@@ -16,7 +16,13 @@ const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 async function runSetup(): Promise<void> {
     await setupTemplates();
     await setupPrograms();
+    await setupCampaignTypes();
     console.log("✅ PRE-MIGRATION SETUP COMPLETED!!!");
+}
+
+async function setupCampaignTypes() {
+    const rows = await listAllCampagnTypes();
+    fs.writeFileSync(path.resolve(process.cwd(), LOCAL_JSON_MAP.CAMPAIGN_TYPES_ID_TO_SLUG), JSON.stringify(Object.fromEntries(rows.map((r) => [String(r.id), r.slug]))));
 }
 
 async function setupTemplates() {

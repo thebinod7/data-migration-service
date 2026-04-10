@@ -233,6 +233,17 @@ export async function* listCampaigns(
   }
 }
 
+export const listAllCampagnTypes = async () => {
+  const pool = getMysqlPool();
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `
+    SELECT *
+    FROM ${MIGRATION_TABLE.LARAVEL.CAMPAIGN_TYPES}
+    `,
+  );
+  return rows as Record<string, unknown>[];
+}
+
 export async function* listImageTemplates(
   lastSeenId: number = 0,
   batchSize: number = BATCH_SIZE,
