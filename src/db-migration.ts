@@ -423,7 +423,7 @@ async function migrateImpactRecords() {
 
     if (records.length > 0) {
       await convex.mutation(api.migrations.bulkInsertImpactRecords, {
-        records,
+        records: records as any,
       });
     }
 

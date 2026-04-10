@@ -1,16 +1,16 @@
-/**
- * Laravel `campaign_types.id` → personal vs business contribution.
- * DB rows: 1 Business, 2 Community, 3 Personal, 4 Pledge, 5 Promotional.
- */
-export type ContributionKind = "business" | "personal" | "other";
+import { readCampaignTypesIdToSlug } from "./utils";
 
-// TODO: Make this dynamic
+export type ContributionKind = "business" | "personal" | "community" | "pledge" | "promotional" | "other";
+
 export function contributionKindFromCampaignTypeId(
   campaignTypeId: unknown,
 ): ContributionKind {
   const id = Number(campaignTypeId);
   if (!Number.isFinite(id)) return "other";
-  if (id === 1) return "business";
-  if (id === 3) return "personal";
+  const campaignTypesIdToSlug = readCampaignTypesIdToSlug();
+  const type = campaignTypesIdToSlug[String(id)];
+  if (type === "business") return "business";
+  if (type === "personal") return "personal";
+  // if (type) return type as ContributionKind;
   return "other";
 }

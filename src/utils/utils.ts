@@ -46,3 +46,9 @@ export const readTemplateIdsBySlug = (): Record<string, string> => {
   const data = fs.readFileSync(filePath, 'utf8');
   return JSON.parse(data);
 }
+
+export const readCampaignTypesIdToSlug = (): Record<string, string> => {
+  const filePath = path.resolve(process.cwd(), LOCAL_JSON_MAP.CAMPAIGN_TYPES_ID_TO_SLUG);
+  const data = fs.readFileSync(filePath, 'utf8');
+  return JSON.parse(data);
+}
