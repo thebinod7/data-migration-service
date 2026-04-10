@@ -641,6 +641,7 @@ async function migrateFallbackAccounts() {
 }
 
 async function migrateDefaultPersonalAccountsForStragglers() {
+  console.log("🔄 Migrating personal accounts for no personal/business account found...");
   const stragglerIds = [...new Set(ctx.wpIdToUserId.values())].filter(
     (userId) => !ctx.userToAccounts.get(userId)?.length,
   );

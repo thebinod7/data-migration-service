@@ -1,10 +1,16 @@
 {
   "tables": {
-    "campaign_recipients": {
-      "lastPrimaryKey": 7162
+    "76a_users": {
+      "lastPrimaryKey": 248683
     },
-    "campaigns": {
-      "lastPrimaryKey": 46
+    "personal_impact_pages": {
+      "lastPrimaryKey": 286
+    },
+    "impact_pages": {
+      "lastPrimaryKey": 727
+    },
+    "campaign_recipients": {
+      "lastPrimaryKey": 22558
     }
   }
 }

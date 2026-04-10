@@ -4,6 +4,7 @@
  */
 export type ContributionKind = "business" | "personal" | "other";
 
+// TODO: Make this dynamic
 export function contributionKindFromCampaignTypeId(
   campaignTypeId: unknown,
 ): ContributionKind {

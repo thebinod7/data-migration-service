@@ -5,7 +5,7 @@ import {
   contributionKindFromCampaignTypeId,
   type ContributionKind,
 } from "./campaignContributionKind";
-import { parseDateToTimestamp, readProgramIdsBySlug } from "./utils";
+import { parseDateToTimestamp, readProgramIdsBySlug, readTemplateIdsBySlug } from "./utils";
 
 /** Laravel `campaign_type_id` → Convex program id (replace with real Convex ids). */
 const PROGRAM_ID_BY_LARAVEL_TYPE: Record<number, string> = {
@@ -88,11 +88,12 @@ function lookupProgramId(campaign: Record<string, unknown> | null): string {
 }
 
 function lookupTemplateId(campaign: Record<string, unknown> | null): string {
-  const templateId = Number(campaign?.image_template_id);
-  if (Number.isFinite(templateId) && templateId > 0) {
-    return TEMPLATE_ID_BY_LARAVEL[templateId] ?? DEFAULT_TEMPLATE_ID;
+  const templateIdsBySlug = readTemplateIdsBySlug();
+  const slug = campaign?.slug;
+  if (slug != null && String(slug).trim() !== "") {
+    return templateIdsBySlug[String(slug).trim()] ?? "";
   }
-  return DEFAULT_TEMPLATE_ID;
+  return "";
 }
 
 /** Best-effort region from meta rows (key/value shapes vary by schema). */

@@ -73,8 +73,11 @@ export const bulkInsertImageTemplates = mutation({
     ),
   },
   handler: async (ctx, { records }) => {
-    await Promise.all(
-      records.map((record) => ctx.db.insert("templates", record)),
+    return Promise.all(
+      records.map(async (record) => {
+        const templateId = await ctx.db.insert("templates", record);
+        return { slug: record.slug, templateId };
+      }),
     );
   },
 });

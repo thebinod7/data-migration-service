@@ -40,3 +40,9 @@ export const readProgramIdsBySlug = (): Record<string, string> => {
   const data = fs.readFileSync(filePath, 'utf8');
   return JSON.parse(data);
 }
+
+export const readTemplateIdsBySlug = (): Record<string, string> => {
+  const filePath = path.resolve(process.cwd(), LOCAL_JSON_MAP.TEMPLATES_BY_SLUG);
+  const data = fs.readFileSync(filePath, 'utf8');
+  return JSON.parse(data);
+}

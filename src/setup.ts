@@ -6,7 +6,7 @@ import { api } from "../convex/_generated/api";
 
 import { listCampaigns, listImageTemplates } from "./extractors/certificate_app";
 import { MIGRATION_TABLE } from "./config/tables";
-import { getLastPrimaryKey, saveCheckpoint } from "./utils/checkpoint";
+import { getLastPrimaryKey } from "./utils/checkpoint";
 import { BATCH_SIZE, LOCAL_JSON_MAP } from "./constants/contants";
 import { CertificateTemplateSourceRow, mapCampaignsRowsToConvexPrograms, mapCertificateTemplateRowsToConvexTemplates } from "./transformers/certificate-data";
 
@@ -14,7 +14,7 @@ const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 
 async function runSetup(): Promise<void> {
-    // await setupTemplates();
+    await setupTemplates();
     await setupPrograms();
     console.log("✅ PRE-MIGRATION SETUP COMPLETED!!!");
 }
@@ -22,6 +22,8 @@ async function runSetup(): Promise<void> {
 async function setupTemplates() {
     console.log("Setting up templates...");
     const TABLE = MIGRATION_TABLE.LARAVEL.IMAGE_TEMPLATES;
+    const templateIdsBySlug: Record<string, string> = {};
+
     let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
     for await (const batch of listImageTemplates(lastId, BATCH_SIZE)) {
         let maxIdInBatch: number = lastId;
@@ -29,17 +31,31 @@ async function setupTemplates() {
         maxIdInBatch = Number(batch[batch.length - 1].id);
         const records = mapCertificateTemplateRowsToConvexTemplates(batch as CertificateTemplateSourceRow[]);
         if (records.length > 0) {
-            await convex.mutation(api.migrations.bulkInsertImageTemplates, {
+            const inserted = await convex.mutation(api.migrations.bulkInsertImageTemplates, {
                 records: records,
             });
+            for (const { slug, templateId } of inserted) {
+                templateIdsBySlug[slug] = templateId;
+            }
         }
 
         if (maxIdInBatch !== lastId) {
-            saveCheckpoint(TABLE, maxIdInBatch);
+            // saveCheckpoint(TABLE, maxIdInBatch);
             lastId = maxIdInBatch;
         }
         console.log(`✅ Inserted ${records.length} templates`);
     }
+    writeTemplateIdsBySlug(templateIdsBySlug);
+}
+
+function writeTemplateIdsBySlug(templateIdsBySlug: Record<string, string>): void {
+    const outPath = path.resolve(process.cwd(), LOCAL_JSON_MAP.TEMPLATES_BY_SLUG);
+    fs.writeFileSync(
+        outPath,
+        JSON.stringify(templateIdsBySlug, null, 2),
+        "utf-8",
+    );
+    console.log(`Wrote template slug → id map: ${outPath}`);
 }
 
 function writeProgramIdsBySlug(programIdsBySlug: Record<string, string>): void {
@@ -73,7 +89,7 @@ async function setupPrograms() {
         }
 
         if (maxIdInBatch !== lastId) {
-            saveCheckpoint(TABLE, maxIdInBatch);
+            // saveCheckpoint(TABLE, maxIdInBatch);
             lastId = maxIdInBatch;
         }
         console.log(`✅ Inserted ${records.length} programs`);
