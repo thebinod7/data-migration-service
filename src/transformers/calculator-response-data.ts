@@ -318,10 +318,9 @@ export function parseFootprintPostToCalculatorPayload(
   const sdgPersonal = stringArrayFromJson(obj.sdg_personal ?? obj.sdgPersonal);
   const sdgPlanet = stringArrayFromJson(obj.sdg_planet ?? obj.sdgPlanet);
 
-  const scoreBase = coerceFiniteNumber(obj.score_base ?? obj.scoreBase);
-  const scoreByPage = parseScoreByPage(obj.score_by_page ?? obj.scoreByPage);
-
   const country = parseCountryFromJson(obj);
+  const scoreBase = country?.averageKg ?? 0;
+  const scoreByPage = parseScoreByPage(obj.score_by_page ?? obj.scoreByPage);
   const demographics = buildDemographics(obj);
   const answers = buildAnswers(obj);
 
@@ -331,7 +330,7 @@ export function parseFootprintPostToCalculatorPayload(
     ...(preferenceId ? { preferenceId } : {}),
     answers,
     ...(scoreTotal !== undefined ? { scoreTotal } : {}),
-    ...(scoreBase !== undefined ? { scoreBase } : {}),
+    scoreBase,
     ...(scoreByPage ? { scoreByPage } : {}),
     ...(demographics ? { demographics } : {}),
     ...(newsletterOptIn !== undefined ? { newsletterOptIn } : {}),
