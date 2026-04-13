@@ -128,6 +128,90 @@ export async function* listFootPrints(
   }
 }
 
+/** Raw `meta_value` strings from `76a_postmeta` for `score` / `action` keys (after `meta_id` dedupe). */
+export type FootprintPostMetaByPostId = {
+  score?: string;
+  action?: string;
+};
+
+type FootprintPostMetaDedupe = {
+  score?: string;
+  scoreMetaId: number;
+  action?: string;
+  actionMetaId: number;
+};
+
+/**
+ * Batched read of WordPress postmeta for footprint calculator fields.
+ * Duplicate rows per `(post_id, meta_key)` resolve to the row with the largest `meta_id`.
+ */
+export async function fetchFootprintPostMetaForPostIds(
+  postIds: readonly number[],
+): Promise<Map<number, FootprintPostMetaByPostId>> {
+  const out = new Map<number, FootprintPostMetaByPostId>();
+  const ids = [...new Set(postIds.map((id) => Number(id)).filter((n) => Number.isFinite(n) && n > 0))];
+  if (ids.length === 0) return out;
+
+  const pool = getMysqlPool();
+  const placeholders = ids.map(() => "?").join(", ");
+  const [rows] = await pool.execute<mysql.RowDataPacket[]>(
+    `
+    SELECT meta_id, post_id, meta_key, meta_value
+    FROM \`${MIGRATION_TABLE.WORDPRESS.POSTMETA}\`
+    WHERE post_id IN (${placeholders})
+      AND meta_key IN ('score', 'action')
+    `,
+    ids,
+  );
+
+  const list = Array.isArray(rows) ? rows : [];
+  const dedupe = new Map<number, FootprintPostMetaDedupe>();
+
+  const metaValueToString = (v: unknown): string => {
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    if (Buffer.isBuffer(v)) return v.toString("utf8");
+    return String(v);
+  };
+
+  for (const row of list) {
+    const postId = Number(row.post_id);
+    if (!Number.isFinite(postId) || postId <= 0) continue;
+
+    const metaKey = String(row.meta_key ?? "");
+    if (metaKey !== "score" && metaKey !== "action") continue;
+
+    const metaId = Number(row.meta_id);
+    const metaIdSafe = Number.isFinite(metaId) ? metaId : 0;
+    const metaValue = metaValueToString(row.meta_value);
+
+    let slot = dedupe.get(postId);
+    if (!slot) {
+      slot = { scoreMetaId: -1, actionMetaId: -1 };
+      dedupe.set(postId, slot);
+    }
+
+    if (metaKey === "score" && metaIdSafe >= slot.scoreMetaId) {
+      slot.scoreMetaId = metaIdSafe;
+      slot.score = metaValue;
+    } else if (metaKey === "action" && metaIdSafe >= slot.actionMetaId) {
+      slot.actionMetaId = metaIdSafe;
+      slot.action = metaValue;
+    }
+  }
+
+  for (const [postId, slot] of dedupe) {
+    const entry: FootprintPostMetaByPostId = {};
+    if (slot.score !== undefined) entry.score = slot.score;
+    if (slot.action !== undefined) entry.action = slot.action;
+    if (entry.score !== undefined || entry.action !== undefined) {
+      out.set(postId, entry);
+    }
+  }
+
+  return out;
+}
+
 /**
  * One pre-pass over all `plastic_footprint` posts (within `ID_CAP`): deterministic
  * `attemptNumber` per normalized email, ordered by `post_date` then `ID`.

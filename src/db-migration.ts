@@ -18,6 +18,7 @@ import {
 } from "./extractors/auth_app";
 import {
   closeWordpressMysqlPool,
+  fetchFootprintPostMetaForPostIds,
   listFootPrints,
   listWpUsers,
   loadAffiliateAdvisorActiveByWpUserId,
@@ -97,7 +98,7 @@ async function runMigration(): Promise<void> {
     // await migrateTribeInvites();
     // await migrateTribeList();
     await migrateImpactRecords();
-    // await migrateFootPrints(); 
+    await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ MIGRATION COMPLETED!!!");
@@ -240,6 +241,11 @@ async function migrateFootPrints() {
 
     const records: any[] = [];
 
+    const postIds = batch
+      .map((r) => Number((r as Record<string, unknown>).ID))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const metaByPostId = await fetchFootprintPostMetaForPostIds(postIds);
+
     for (const row of batch) {
       const postId = Number(row.ID);
       maxIdInBatch = postId;
@@ -253,11 +259,15 @@ async function migrateFootPrints() {
       const accounts = ctx.userToAccounts.get(userId); // must have activeAccountId set in DB
       const accountId = accounts?.[0];
 
+      const meta = metaByPostId.get(postId);
       const payload = parseFootprintPostToCalculatorPayload(
         row as PlasticFootprintPostRow,
         {
           attemptNumber: 1,
-          scoreTotalFromMeta: "",
+          ...(meta?.score !== undefined ? { scoreTotalFromMeta: meta.score } : {}),
+          ...(meta?.action !== undefined
+            ? { currentPageFromMeta: meta.action }
+            : {}),
         },
       );
       if (!payload) continue;

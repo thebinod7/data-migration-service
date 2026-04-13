@@ -135,6 +135,23 @@ function coerceFiniteNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+/** WordPress `postmeta.meta_value` for `score` — same coercion as JSON `footprint_score` paths. */
+export function resolveScoreTotalFromMeta(value: unknown): number | undefined {
+  return coerceFiniteNumber(value);
+}
+
+/** WordPress `postmeta.meta_value` for `action` — trimmed non-empty string, or finite number as string. */
+export function resolveCurrentPageFromMeta(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const t = value.trim();
+    return t !== "" ? t : undefined;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return undefined;
+}
+
 function parseCountryFromJson(obj: Record<string, unknown>): CalculatorCountrySnapshot | undefined {
   const raw = obj.countries ?? obj.country;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
@@ -248,21 +265,24 @@ function inferCurrentPageFromJson(
  * Parses `post_content` JSON and maps routed fields. Returns `null` if JSON is missing
  * or not an object (row should be skipped or quarantined).
  *
- * `scoreTotalFromMeta` is the value from `76a_postmeta` (`footprint_score`) when available.
- * `status` is `completed` when any finite total is present (meta first, then JSON keys
- * `footprint_score` / `score_total` / `scoreTotal`). `completedAt` and `currentPage` follow that.
+ * `scoreTotalFromMeta` is the raw `meta_value` for WordPress `meta_key` `score` when available.
+ * `currentPageFromMeta` is the raw `meta_value` for `action`.
+ * `status` is `completed` when any finite total is present (meta first via
+ * {@link resolveScoreTotalFromMeta}, then JSON keys `footprint_score` / `score_total` / `scoreTotal`).
+ * `currentPage` prefers {@link resolveCurrentPageFromMeta}, else {@link inferCurrentPageFromJson}.
  */
 export function parseFootprintPostToCalculatorPayload(
   row: PlasticFootprintPostRow,
   options: {
     attemptNumber: number;
     scoreTotalFromMeta?: unknown;
+    currentPageFromMeta?: unknown;
   },
 ): CalculatorResponsePayload | null {
   const obj = tryParseJsonObject(stringFromPostContent(row.post_content));
   if (!obj) return null;
 
-  const scoreFromMeta = coerceFiniteNumber(options.scoreTotalFromMeta);
+  const scoreFromMeta = resolveScoreTotalFromMeta(options.scoreTotalFromMeta);
   const scoreFromJson = coerceFiniteNumber(
     obj.footprint_score ?? obj.score_total ?? obj.scoreTotal,
   );
@@ -318,7 +338,9 @@ export function parseFootprintPostToCalculatorPayload(
     ...(sdgPersonal ? { sdgPersonal } : {}),
     ...(sdgPlanet ? { sdgPlanet } : {}),
     ...(referredBy ? { referredBy } : {}),
-    currentPage: inferCurrentPageFromJson(obj, status),
+    currentPage:
+      resolveCurrentPageFromMeta(options.currentPageFromMeta) ??
+      inferCurrentPageFromJson(obj, status),
     status,
     ...(completedAt !== undefined && completedAt > 0 ? { completedAt } : {}),
     createdAt: createdAt || updatedAt,
