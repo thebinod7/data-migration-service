@@ -12,7 +12,7 @@
 - AccountMembership => ✅
 - AccountProfile => logo = business ? logo : profilePic
 - ProfileSection => config
-- ImpactRecords => source + find reason for skip
+- ImpactRecords => ✅ find reason for skip
 - Trials => ✅
 - CalculatorReponse => attemptNumber, scoreTotal, scoreBase, scoreByPage, referredBy, currentPage
 - ReferralCodes => ✅
