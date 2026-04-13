@@ -96,7 +96,7 @@ async function runMigration(): Promise<void> {
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
-    // await migrateImpactRecords();
+    await migrateImpactRecords();
     // await migrateFootPrints(); 
     // ---------------- End of first batch ----------------
 

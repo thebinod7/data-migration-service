@@ -136,13 +136,19 @@ function resolveImpactRegion(
 
 function buildSource(
   recipient: Record<string, unknown>,
-  campaign: Record<string, unknown> | null,
 ): string {
-  const partA = String(recipient.source ?? "").trim();
-  const sub =
-    recipient.subscription_type ?? campaign?.subscription_type ?? "";
-  const partB = String(sub).trim();
-  return `${partA}${partB}`;
+  const sub = String(
+    recipient.subscription_type ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  if (sub === "onetime") {
+    return "purchase";
+  }
+  if (sub === "monthly" || sub === "annual") {
+    return "subscription";
+  }
+  return "";
 }
 
 /**
@@ -178,7 +184,7 @@ export function mapEnrichedRecipientsToImpactRecords(
       impactRegion: resolveImpactRegion(campaign, metas),
       programId: lookupProgramId(campaign),
       templateId: lookupTemplateId(campaign),
-      source: buildSource(recipient, campaign),
+      source: buildSource(recipient),
       state: String(recipient.status ?? ""),
       attributionStatus,
       certificateNameOverride: String(recipient.name ?? ""),
