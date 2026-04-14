@@ -29,6 +29,7 @@ import {
   mapBusinessImpactPageToProfile,
   mapPersonalImpactPageToProfile,
 } from "./utils/impactPageProfileMappers";
+import { profileSectionConfigsFromImpactRow } from "./utils/profileSectionConfigsFromLaravelRow";
 import {
   parseFootprintPostToCalculatorPayload,
   type PlasticFootprintPostRow,
@@ -97,8 +98,8 @@ async function runMigration(): Promise<void> {
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
-    await migrateImpactRecords();
-    await migrateFootPrints();
+    // await migrateImpactRecords();
+    // await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ MIGRATION COMPLETED!!!");
@@ -481,6 +482,10 @@ async function migrateBusinessAccounts() {
           ? parseDateToTimestamp(String(p.updated_at))
           : Date.now(),
         profile: mapBusinessImpactPageToProfile(p as Record<string, unknown>),
+        profileSectionConfigs: profileSectionConfigsFromImpactRow(
+          p as Record<string, unknown>,
+          "business",
+        ),
       });
     }
 
@@ -583,6 +588,10 @@ async function migratePersonalAccounts() {
           ? parseDateToTimestamp(String(p.updated_at))
           : Date.now(),
         profile: mapPersonalImpactPageToProfile(p as Record<string, unknown>),
+        profileSectionConfigs: profileSectionConfigsFromImpactRow(
+          p as Record<string, unknown>,
+          "personal",
+        ),
       });
     }
 

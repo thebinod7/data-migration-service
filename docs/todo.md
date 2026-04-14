@@ -14,7 +14,7 @@
 - ProfileSection => config
 - ImpactRecords => ✅ find reason for skip
 - Trials => ✅
-- CalculatorReponse => attemptNumber, scoreTotal, scoreBase, scoreByPage, referredBy, currentPage
+- CalculatorReponse => ✅
 - ReferralCodes => ✅
 - Tribe => ✅
 - TribeMembership => ✅

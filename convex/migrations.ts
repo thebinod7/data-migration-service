@@ -10,7 +10,6 @@ import {
 
 /** Matches main app `profileSections` table (see migration.md §5). */
 const PROFILE_SECTIONS_TABLE = "profileSections" as const;
-const HARDCODED_PROFILE_SECTION_CONFIG: Record<string, never> = {};
 
 const templateTextFieldValidator = v.object({
   fieldId: v.string(),
@@ -137,6 +136,7 @@ export const bulkInsertImpactAccounts = mutation({
         createdAt: v.number(),
         updatedAt: v.number(),
         profile: v.optional(impactAccountProfileValidator),
+        profileSectionConfigs: v.optional(v.array(v.any())),
       }),
     ),
   },
@@ -153,7 +153,7 @@ export const bulkInsertImpactAccounts = mutation({
         out.push({ ownerId: r.ownerId, accountId: existing._id });
         continue;
       }
-      const { profile, ...accountFields } = r;
+      const { profile, profileSectionConfigs, ...accountFields } = r;
       const accountId = await ctx.db.insert("accounts", accountFields);
       await ctx.db.insert("accountMemberships", {
         accountId,
@@ -169,12 +169,15 @@ export const bulkInsertImpactAccounts = mutation({
           updatedAt: r.updatedAt,
         });
       }
-      await ctx.db.insert(PROFILE_SECTIONS_TABLE, {
-        accountId,
-        config: HARDCODED_PROFILE_SECTION_CONFIG,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      });
+      console.log("profileSectionConfigs==>", profileSectionConfigs);
+      for (const config of profileSectionConfigs ?? []) {
+        await ctx.db.insert(PROFILE_SECTIONS_TABLE, {
+          accountId,
+          config,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        });
+      }
       out.push({ ownerId: r.ownerId, accountId });
     }
     return out;
