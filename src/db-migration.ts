@@ -5,6 +5,7 @@ import { api } from "../convex/_generated/api";
 import { MIGRATION_TABLE } from "./config/tables";
 import {
   closeCertificateMysqlPool,
+  countMysqlRowsFromLaravelTable,
   enrichCampaignRecipientBatch,
   listBusinessImpactPages,
   listCampaignRecipients,
@@ -97,7 +98,7 @@ async function runMigration(): Promise<void> {
     await migratePersonalAccounts();
     await migrateBusinessAccounts();
     await migrateAccountsFromCampaignRecipients();
-    // await migrateDefaultPersonalAccountsForStragglers();
+    await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
@@ -458,6 +459,12 @@ async function migrateBusinessAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.IMPACT_PAGES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
+  const sourceBusinessImpactCount = await countMysqlRowsFromLaravelTable(TABLE);
+  logger.info("Business account from impact pages migration started:", {
+    sourceBusinessImpactCount,
+  });
+  let transferredTotal = 0;
+
   for await (const batch of listBusinessImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
     const records: any[] = [];
@@ -502,7 +509,7 @@ async function migrateBusinessAccounts() {
           records,
         },
       );
-
+      transferredTotal += ownerAndAccountIds.length;
       await refillAcountIdForUsers(ownerAndAccountIds, records);
     }
 
@@ -512,6 +519,10 @@ async function migrateBusinessAccounts() {
       lastId = maxIdInBatch;
     }
   }
+  logger.info("Business account from impact pages migration completed", {
+    sourceBusinessImpactCount,
+    transferredBusinessImpactCount: transferredTotal,
+  });
   console.log("✅ Business accounts migration done");
 }
 
@@ -564,6 +575,13 @@ async function migratePersonalAccounts() {
   const TABLE = MIGRATION_TABLE.LARAVEL.PERSONAL_IMPACT_PAGES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
+  const sourcePersonalImpactCount = await countMysqlRowsFromLaravelTable(TABLE);
+  logger.info("Personal account from impact pages migration started:", {
+    sourcePersonalImpactCount,
+  });
+  let transferredTotal = 0;
+
+
   for await (const batch of listPersonalImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
     const records: any[] = [];
@@ -607,7 +625,7 @@ async function migratePersonalAccounts() {
           records,
         },
       );
-
+      transferredTotal += ownerAndAccountIds.length;
       await refillAcountIdForUsers(ownerAndAccountIds, records);
     }
 
@@ -617,6 +635,11 @@ async function migratePersonalAccounts() {
       lastId = maxIdInBatch;
     }
   }
+
+  logger.info("Personal account from impact pages migration completed", {
+    sourcePersonalImpactCount,
+    transferredPersonalImpactCount: transferredTotal,
+  });
   console.log("✅ Personal accounts migration done");
 }
 
@@ -624,6 +647,12 @@ async function migrateAccountsFromCampaignRecipients() {
   console.log("🔄 Migrating accounts from campaign recipients...");
   const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+
+  const sourceCampaignRecipientCount = await countMysqlRowsFromLaravelTable(TABLE);
+  logger.info("Accounts from campaign recipients migration started:", {
+    sourceCampaignRecipientCount,
+  });
+  let transferredTotal = 0;
 
   for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
@@ -640,7 +669,7 @@ async function migrateAccountsFromCampaignRecipients() {
       }[] = await convex.mutation(api.migrations.bulkInsertImpactAccounts, {
         records,
       });
-
+      transferredTotal += ownerAndAccountIds.length;
       registerFallbackAccountsFromInsertResults(records, ownerAndAccountIds);
       await refillAcountIdForUsers(ownerAndAccountIds, records);
     }
@@ -655,6 +684,11 @@ async function migrateAccountsFromCampaignRecipients() {
     }
   }
 
+  logger.info("Accounts from campaign recipients migration completed", {
+    sourceCampaignRecipientCount,
+    transferredCampaignRecipientCount: transferredTotal,
+  });
+
   console.log("✅ Accounts from campaign recipients migration done");
 }
 
@@ -663,6 +697,11 @@ async function migrateDefaultPersonalAccountsForStragglers() {
   const stragglerIds = [...new Set(ctx.wpIdToUserId.values())].filter(
     (userId) => !ctx.userToAccounts.get(userId)?.length,
   );
+  const sourceStragglerCount = stragglerIds.length;
+  logger.info("Personal accounts for stragglers migration started:", {
+    sourceStragglerCount,
+  });
+  let transferredTotal = 0;
 
   let inserted = 0;
   for (let i = 0; i < stragglerIds.length; i += BATCH_SIZE) {
@@ -684,6 +723,7 @@ async function migrateDefaultPersonalAccountsForStragglers() {
       await convex.mutation(api.migrations.bulkInsertImpactAccounts, {
         records,
       });
+    transferredTotal += ownerAndAccountIds.length;
     await refillAcountIdForUsers(ownerAndAccountIds, records);
     inserted += records.length;
   }
@@ -691,6 +731,10 @@ async function migrateDefaultPersonalAccountsForStragglers() {
   console.log(
     `[Straggler personal accounts] eligible=${stragglerIds.length}, inserted=${inserted}`,
   );
+  logger.info("Personal accounts for stragglers migration completed", {
+    sourceStragglerCount,
+    transferredStragglerCount: transferredTotal,
+  });
   console.log("✅ Default personal accounts for stragglers done");
 }
 
