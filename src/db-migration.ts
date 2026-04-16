@@ -96,9 +96,9 @@ async function runMigration(): Promise<void> {
     ctx.affiliateActiveByWpUserId =
       await loadAffiliateAdvisorActiveByWpUserId();
     await migratePersonalAccounts();
-    await migrateBusinessAccounts();
-    await migrateAccountsFromCampaignRecipients();
-    await migrateDefaultPersonalAccountsForStragglers();
+    // await migrateBusinessAccounts();
+    // await migrateAccountsFromCampaignRecipients();
+    // await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
@@ -468,16 +468,12 @@ async function migrateBusinessAccounts() {
   for await (const batch of listBusinessImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
     const records: any[] = [];
-    const ownerIdsQueuedThisBatch = new Set<string>();
 
     for (const p of batch) {
       maxIdInBatch = Number(p.id);
 
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
-      if (!ownerId) continue; // If user from WP not migrated
-      if (ctx.ownerAccountTypes.get(ownerId)?.has("business")) continue;
-      if (ownerIdsQueuedThisBatch.has(ownerId)) continue;
-      ownerIdsQueuedThisBatch.add(ownerId);
+      if (!ownerId) continue;
 
       records.push({
         ownerId,
@@ -585,16 +581,14 @@ async function migratePersonalAccounts() {
   for await (const batch of listPersonalImpactPages(lastId, 50)) {
     let maxIdInBatch: number = lastId;
     const records: any[] = [];
-    const ownerIdsQueuedThisBatch = new Set<string>();
 
     for (const p of batch) {
       maxIdInBatch = Number(p.id);
 
       const ownerId = ctx.wpIdToUserId.get(Number(p.user_id));
-      if (!ownerId) continue;
-      if (ctx.ownerAccountTypes.get(ownerId)?.has("personal")) continue;
-      if (ownerIdsQueuedThisBatch.has(ownerId)) continue;
-      ownerIdsQueuedThisBatch.add(ownerId);
+      if (!ownerId) {
+        continue; // Skip if impact_page.user_id no found in WP users table
+      }
 
       const name = `${p.first_name || ""} ${p.last_name || ""}`.trim();
       records.push({
