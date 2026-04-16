@@ -25,7 +25,7 @@ export function getMysqlPool(): mysql.Pool {
   return pool;
 }
 
-export async function countMysqlRows(table: string): Promise<number> {
+export async function countMysqlRowsFromWpTable(table: string): Promise<number> {
   const pool = getMysqlPool();
   const [rows] = await pool.execute<mysql.RowDataPacket[]>(
     `SELECT COUNT(*) as count FROM \`${table}\``,

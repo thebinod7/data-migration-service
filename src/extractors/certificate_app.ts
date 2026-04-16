@@ -309,7 +309,6 @@ export async function* extractCertificateAppDataBatched(
   lastId: number | string | null,
 ): AsyncGenerator<Record<string, unknown>[]> {
   const pool = getMysqlPool();
-  // const total = await countMysqlRows(table);
 
   while (true) {
     const query = `
@@ -337,7 +336,7 @@ export async function* extractCertificateAppDataBatched(
   console.log("Finished certficate app tables extraction", { table });
 }
 
-export async function countMysqlRows(table: string): Promise<number> {
+export async function countMysqlRowsFromLaravelTable(table: string): Promise<number> {
   const pool = getMysqlPool();
   const [rows] = await pool.execute<mysql.RowDataPacket[]>(
     `SELECT COUNT(*) as count FROM \`${table}\``,

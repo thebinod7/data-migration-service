@@ -18,7 +18,7 @@ import {
 } from "./extractors/auth_app";
 import {
   closeWordpressMysqlPool,
-  countMysqlRows,
+  countMysqlRowsFromWpTable,
   fetchFootprintPostMetaForPostIds,
   listFootPrints,
   listWpUsers,
@@ -698,7 +698,7 @@ async function migrateUsersFromWordpress() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.USERS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
-  const sourceUserCount = await countMysqlRows(TABLE);
+  const sourceUserCount = await countMysqlRowsFromWpTable(TABLE);
   logger.info("WordPress user migration started", {
     sourceUserCount,
   });
