@@ -169,7 +169,6 @@ export const bulkInsertImpactAccounts = mutation({
           updatedAt: r.updatedAt,
         });
       }
-      console.log("profileSectionConfigs==>", profileSectionConfigs);
       for (const config of profileSectionConfigs ?? []) {
         await ctx.db.insert(PROFILE_SECTIONS_TABLE, {
           accountId,
