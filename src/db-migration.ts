@@ -92,11 +92,11 @@ async function runMigration(): Promise<void> {
 
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
-    // ctx.affiliateActiveByWpUserId =
-    //   await loadAffiliateAdvisorActiveByWpUserId();
-    // await migratePersonalAccounts();
-    // await migrateBusinessAccounts();
-    // await migrateFallbackAccounts();
+    ctx.affiliateActiveByWpUserId =
+      await loadAffiliateAdvisorActiveByWpUserId();
+    await migratePersonalAccounts();
+    await migrateBusinessAccounts();
+    await migrateAccountsFromCampaignRecipients();
     // await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     // await migrateTribeInvites();
@@ -620,8 +620,8 @@ async function migratePersonalAccounts() {
   console.log("✅ Personal accounts migration done");
 }
 
-async function migrateFallbackAccounts() {
-  console.log("🔄 Migrating fallback accounts...");
+async function migrateAccountsFromCampaignRecipients() {
+  console.log("🔄 Migrating accounts from campaign recipients...");
   const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
@@ -646,7 +646,7 @@ async function migrateFallbackAccounts() {
     }
 
     console.log(
-      `[Fallback accounts] enriched=${enriched.length}, inserted=${records.length}`,
+      `[Accounts from campaign recipients] enriched=${enriched.length}, inserted=${records.length}`,
     );
 
     if (maxIdInBatch !== lastId) {
@@ -655,7 +655,7 @@ async function migrateFallbackAccounts() {
     }
   }
 
-  console.log("✅ Fallback accounts migration done");
+  console.log("✅ Accounts from campaign recipients migration done");
 }
 
 async function migrateDefaultPersonalAccountsForStragglers() {

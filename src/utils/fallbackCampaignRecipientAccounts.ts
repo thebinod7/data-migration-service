@@ -1,3 +1,4 @@
+import { FREE_100 } from "../constants/contants";
 import type { CampaignRecipientSourceRow } from "../extractors/certificate_app";
 import { contributionKindFromCampaignTypeId } from "./campaignContributionKind";
 import {
@@ -225,7 +226,7 @@ export function buildFallbackImpactAccountRecordsForBatch(
     if (!ownerId) continue;
 
     const kind = contributionKindFromCampaignTypeId(campaign?.campaign_type_id);
-    if (kind === "business") {
+    if (kind === "business" || campaign?.slug === FREE_100) {
       queueBusinessDraft(ownerId, recipient, businessDrafts, c);
     } else {
       queuePersonalDraft(ownerId, recipient, personalDrafts, c);

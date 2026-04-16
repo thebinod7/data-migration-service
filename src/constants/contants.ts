@@ -13,3 +13,6 @@ export const LOCAL_JSON_MAP = {
   TEMPLATES_BY_SLUG: 'templates-by-slug.json',
   CAMPAIGN_TYPES_ID_TO_SLUG: 'campaign-types-id-to-slug.json',
 }
+
+export const FREE_50 = 'free50';
+export const FREE_100 = 'free100';
