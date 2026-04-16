@@ -8,3 +8,5 @@ dist/
 programs-by-slug.json
 templates-by-slug.json
 campaign-types-id-to-slug.json
+
+*.log 

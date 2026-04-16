@@ -56,10 +56,12 @@ import {
   resolveIsActiveAdvisor,
 } from "./utils/fallbackCampaignRecipientAccounts";
 import { BATCH_SIZE } from "./constants/contants";
+import { flushLogs, logger } from "./utils/logger";
 
 const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 type OwnerAccountKind = "personal" | "business";
+
 
 const ctx = {
   emailToUserId: new Map<string, string>(),
@@ -108,8 +110,10 @@ async function runMigration(): Promise<void> {
       error: err?.message,
       stack: err?.stack,
     });
+    await flushLogs();
     process.exit(1);
   } finally {
+    await flushLogs();
     await closeWordpressMysqlPool();
     await closeCertificateMysqlPool();
     await closeAuthPgPool();
