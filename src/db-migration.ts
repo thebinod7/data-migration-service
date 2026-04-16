@@ -18,6 +18,7 @@ import {
 } from "./extractors/auth_app";
 import {
   closeWordpressMysqlPool,
+  countMysqlRows,
   fetchFootprintPostMetaForPostIds,
   listFootPrints,
   listWpUsers,
@@ -91,12 +92,12 @@ async function runMigration(): Promise<void> {
 
     // ---------------- First batch ----------------
     await migrateUsersFromWordpress();
-    ctx.affiliateActiveByWpUserId =
-      await loadAffiliateAdvisorActiveByWpUserId();
-    await migratePersonalAccounts();
-    await migrateBusinessAccounts();
-    await migrateFallbackAccounts();
-    await migrateDefaultPersonalAccountsForStragglers();
+    // ctx.affiliateActiveByWpUserId =
+    //   await loadAffiliateAdvisorActiveByWpUserId();
+    // await migratePersonalAccounts();
+    // await migrateBusinessAccounts();
+    // await migrateFallbackAccounts();
+    // await migrateDefaultPersonalAccountsForStragglers();
     // await migrateTrials();
     // await migrateTribeInvites();
     // await migrateTribeList();
@@ -697,6 +698,13 @@ async function migrateUsersFromWordpress() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.USERS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
+  const sourceUserCount = await countMysqlRows(TABLE);
+  logger.info("WordPress user migration started", {
+    sourceUserCount,
+  });
+
+  let transferredTotal = 0;
+
   for await (const batch of listWpUsers(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
 
@@ -734,6 +742,8 @@ async function migrateUsersFromWordpress() {
       continue;
     }
 
+    transferredTotal += result.length;
+
     result.forEach((r: any, i: number) => {
       const u = users[i];
       ctx.emailToUserId.set(u.email, r.id);
@@ -754,4 +764,9 @@ async function migrateUsersFromWordpress() {
 
     console.log(`✅ Inserted ${users.length} users`);
   }
+
+  logger.info("WordPress user migration completed", {
+    sourceUserCount,
+    transferredUserCount: transferredTotal,
+  });
 }
