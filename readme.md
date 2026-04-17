@@ -1,6 +1,6 @@
 # Data migration service
 
-Service that migrates data from legacy sources (WordPress, certificate/Laravel MySQL, Tribe PostgreSQL, auth PostgreSQL) into Convex.
+Service that migrates data from legacy sources (WordPress, Certificate/Laravel MySQL, Tribe PostgreSQL, Auth PostgreSQL) into Convex.
 
 ## Prerequisites
 
@@ -50,11 +50,11 @@ Service that migrates data from legacy sources (WordPress, certificate/Laravel M
 
    Before running, confirm you can reach **all** backing systems configured in `.env`:
 
-   - WordPress MySQL (`WP_*`)
-   - Certificate / Laravel MySQL (`CERT_*`)
-   - Tribe PostgreSQL (`PG_*`)
-   - Auth app PostgreSQL (`AUTH_DB_URL`)
-   - Convex (`CONVEX_URL`, `CONVEX_ADMIN_KEY`)
+   - WordPress MySQL 
+   - Certificate / Laravel MySQL 
+   - Tribe PostgreSQL 
+   - Auth app PostgreSQL
+   - Convex (`CONVEX_DEPLOYMENT`,`CONVEX_URL`, `CONVEX_SITE_URL`)
 
    Use SSH tunnels, or network access as required by your environment.
 
