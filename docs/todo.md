@@ -7,14 +7,14 @@
 
 ==========Fields remaining by table===============
 
-- Users => ssoUserId ✅
+- Users => ssoUserId ✅✅
 - Account => isActiveAdvisor ✅
 - AccountMembership => ✅
 - AccountProfile => logo = business ? logo : profilePic
 - ProfileSection => config
 - ImpactRecords => ✅ find reason for skip
-- Trials => ✅
+- Trials => ✅✅
 - CalculatorReponse => ✅
-- ReferralCodes => ✅
-- Tribe => ✅
-- TribeMembership => ✅
+- ReferralCodes => ✅✅
+- Tribe => ✅✅
+- TribeMembership => ✅✅

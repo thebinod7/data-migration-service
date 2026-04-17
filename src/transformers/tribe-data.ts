@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger";
+
 export type ReferralCodeInsert = {
   accountId: string;
   code: string;
@@ -18,7 +20,10 @@ export function mapInviteFieldsToConvex(
   const out: ReferralCodeInsert[] = [];
   for (const invite of invites) {
     const accountId = resolveAccountId(invite);
-    if (!accountId) continue;
+    if (!accountId) {
+      logger.error("Skipping invite without account id", { wpMemberId: invite.memberId });
+      continue;
+    }
 
     const code = String(invite.trackingId ?? "").trim();
     if (!code) continue;

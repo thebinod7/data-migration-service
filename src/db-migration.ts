@@ -102,8 +102,8 @@ async function runMigration(): Promise<void> {
     await migrateTrials();
     await migrateTribeInvites();
     await migrateTribeList();
-    await migrateImpactRecords();
-    await migrateFootPrints();
+    // await migrateImpactRecords();
+    // await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ MIGRATION COMPLETED!!!");
@@ -214,15 +214,18 @@ async function migrateTribeList() {
     for (const tribe of batch) {
       if (!resolveTribeLeaderAccountId(tribe)) {
         skipNoLeader++;
+        logger.error("Skipping tribe without leader", { memberId: tribe.memberId });
         continue;
       }
       const createdAt = new Date(tribe.createdAt as string | Date).getTime();
       if (!Number.isFinite(createdAt)) {
         skipBadDate++;
+        logger.error("Skipping tribe with bad createdAt", { tribe });
         continue;
       }
       if (!resolveTribeMemberAccountId(tribe)) {
         skipNoMember++;
+        logger.error("Skipping tribe without member account", { tribe });
         continue;
       }
     }
@@ -389,20 +392,30 @@ async function migrateTrials() {
       maxIdInBatch = Number(row.id);
 
       const wpUserId = Number(row.user_id);
-      if (!Number.isFinite(wpUserId) || wpUserId <= 0) continue;
+      if (!Number.isFinite(wpUserId) || wpUserId <= 0) {
+        continue;
+      }
       const convexUserId = ctx.wpIdToUserId.get(wpUserId);
-      if (!convexUserId) continue;
+      if (!convexUserId) {
+        continue;
+      }
       const accounts = ctx.userToAccounts.get(convexUserId);
       const accountId = accounts?.[0] ?? null;
-      if (!accountId) continue;
+      if (!accountId) {
+        continue;
+      }
 
       const startRaw = row.start_trial;
       const endRaw = row.end_trial;
-      if (startRaw == null || endRaw == null) continue;
+      if (startRaw == null || endRaw == null) {
+        continue;
+      }
 
       const startDate = parseDateToTimestamp(String(startRaw));
       const endDate = parseDateToTimestamp(String(endRaw));
-      if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) continue;
+      if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {
+        continue;
+      }
 
       const createdAtRaw = row.created_at;
       const createdAt =
