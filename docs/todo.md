@@ -6,7 +6,7 @@
 - ProfileSection => config
 - ImpactRecords => ✅ find reason for skip
 - Trials => ✅✅
-- CalculatorReponse => ✅
+- CalculatorReponse => ✅✅
 - ReferralCodes => ✅✅
 - Tribe => ✅✅
 - TribeMembership => ✅✅

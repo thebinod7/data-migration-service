@@ -102,8 +102,8 @@ async function runMigration(): Promise<void> {
     await migrateTrials();
     await migrateTribeInvites();
     await migrateTribeList();
-    // await migrateImpactRecords();
-    // await migrateFootPrints();
+    await migrateImpactRecords();
+    await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ MIGRATION COMPLETED!!!");
@@ -258,7 +258,7 @@ async function migrateTribeList() {
   console.log("✅ Tribe list migration done");
 }
 
-// Calculator responses migration
+// email to user mapping is missing for most of the posts
 async function migrateFootPrints() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.WP_POSTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
@@ -281,10 +281,16 @@ async function migrateFootPrints() {
       maxIdInBatch = postId;
 
       const email = extractEmailFromFootprintPost(row as FootprintAttemptRow);
-      if (!email) continue;
+      if (!email) {
+        logger.error("Skipping footprint post without email:", { postId, postTitle: row.post_title });
+        continue;
+      }
 
       const userId = ctx.emailToUserId.get(email);
-      if (!userId) continue;
+      if (!userId) {
+        logger.error("Skipping footprint post without user ID:", { postId, email });
+        continue;
+      }
 
       const accounts = ctx.userToAccounts.get(userId); // must have activeAccountId set in DB
       const accountId = accounts?.[0];
@@ -300,7 +306,10 @@ async function migrateFootPrints() {
             : {}),
         },
       );
-      if (!payload) continue;
+      if (!payload) {
+        logger.error("Skipping footprint post without payload:", { postId, userId });
+        continue;
+      }
 
       const now = Date.now();
       const createdAt = payload.createdAt > 0 ? payload.createdAt : now;

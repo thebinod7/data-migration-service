@@ -5,7 +5,7 @@ export const DB_SOURCES = {
 };
 
 export const ID_CAP = 1000000; // Maximum ID value for pagination
-export const BATCH_SIZE = 500;
+export const BATCH_SIZE = 1000;
 export const AFFILIATE_STATUS_ACTIVE = "active";
 
 export const LOCAL_JSON_MAP = {

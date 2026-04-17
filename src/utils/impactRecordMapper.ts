@@ -6,6 +6,7 @@ import {
   type ContributionKind,
 } from "./campaignContributionKind";
 import { parseDateToTimestamp, readProgramIdsBySlug, readTemplateIdsBySlug } from "./utils";
+import { logger } from "./logger";
 
 /** Laravel `campaign_type_id` → Convex program id (replace with real Convex ids). */
 const PROGRAM_ID_BY_LARAVEL_TYPE: Record<number, string> = {
@@ -162,10 +163,16 @@ export function mapEnrichedRecipientsToImpactRecords(
   const out: ImpactRecordConvexRow[] = [];
 
   for (const { recipient, campaign, metas } of enriched) {
-    if (isFailedStatus(recipient.status)) continue;
+    if (isFailedStatus(recipient.status)) {
+      logger.error("Skipping campaign recipient with failed status:", { recipientUserId: recipient.user_id });
+      continue;
+    }
 
     const accountId = ctx.resolveAccountId({ recipient, campaign });
-    if (!accountId) continue;
+    if (!accountId) {
+      logger.error("Skipping campaign recipient without account ID:", { recipientUserId: recipient.user_id });
+      continue;
+    }
 
     const createdAt = parseDateToTimestamp(String(recipient.created_at ?? ""));
     const purchaserEmailRaw = normalizeEmail(recipient.email);

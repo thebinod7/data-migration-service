@@ -6,6 +6,7 @@ import {
   buildAttemptNumberByPostId,
   type FootprintAttemptRow,
 } from "../transformers/footprint-attempt";
+import { logger } from "../utils/logger";
 
 let pool: mysql.Pool | null = null;
 
@@ -179,7 +180,10 @@ export async function fetchFootprintPostMetaForPostIds(
     if (!Number.isFinite(postId) || postId <= 0) continue;
 
     const metaKey = String(row.meta_key ?? "");
-    if (metaKey !== "score" && metaKey !== "action") continue;
+    if (metaKey !== "score" && metaKey !== "action") {
+      logger.error("Skipping footprint post meta with unknown key:", { postId, metaKey });
+      continue;
+    }
 
     const metaId = Number(row.meta_id);
     const metaIdSafe = Number.isFinite(metaId) ? metaId : 0;
