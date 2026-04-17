@@ -7,6 +7,25 @@ Service that migrates data from legacy sources (WordPress, Certificate/Laravel M
 - [Node.js](https://nodejs.org/) (24.x.x recommended)
 - [pnpm](https://pnpm.io/) (yarn/npm also works)
 
+## SSH tunnels (run before anything else)
+
+You must have SSH port forwards in place to connect DBs on remote servers so that `pre-migration`, or `migration` can reach staging databases. Keep each `ssh` session running in its own terminal.
+
+
+
+```bash
+# STAGING_TRIBE_DB — Tribe PostgreSQL → localhost:5456
+ssh -L 5456:localhost:5456 USERNAME@SERVER_IP
+
+# STAGING_CERT_DB — Certificate / Laravel MySQL → localhost:3307
+ssh -L 3307:127.0.0.1:3306 USERNAME@SERVER_IP
+
+# STAGING_WP_DB — WordPress MySQL → localhost:3308
+ssh -L 3308:127.0.0.1:3306 USERNAME@SERVER_IP
+```
+
+Notice that these local ports (`5456`, `3307`, `3308`) inside `.env` are connecting using localhost to remote servers with the help of tunneling.
+
 ## Setup and migration
 
 1. **Clone the repository and enter the project directory**
@@ -56,25 +75,11 @@ Service that migrates data from legacy sources (WordPress, Certificate/Laravel M
    - Auth app PostgreSQL
    - Convex (`CONVEX_DEPLOYMENT`,`CONVEX_URL`, `CONVEX_SITE_URL`)
 
-   Use SSH tunnels, or network access as required by your environment.
+   Use the [SSH tunnels](#ssh-tunnels-run-before-anything-else) above, or other network access as required by your environment.
 
 6. **Migration statistics** are appended to `migration.log` (info-level messages from the Winston logger).
 
 7. **Migration errors** are written to `migration-error.log` (error-level messages).
-
-## Configuration
-
-Variables used by `src/config/index.ts` and related code:
-
-| Variable | Purpose |
-| --- | --- |
-| `CONVEX_URL` | Convex deployment HTTP URL |
-| `CONVEX_ADMIN_KEY` | Convex admin key (for mutations that need it) |
-| `WP_DB_HOST`, `WP_DB_PORT`, `WP_DB_USER`, `WP_DB_PASSWORD`, `WP_DATABASE` | WordPress MySQL |
-| `CERT_DB_HOST`, `CERT_DB_PORT`, `CERT_DB_USER`, `CERT_DB_PASSWORD`, `CERT_DATABASE` | Certificate / Laravel MySQL |
-| `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, `PG_DATABASE` | Tribe PostgreSQL |
-| `AUTH_DB_URL` | Auth PostgreSQL connection URL |
-
 
 ## Scripts
 
