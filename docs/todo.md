@@ -1,11 +1,3 @@
-# Nice to have for migration:
-- count total rows migrated on particular table
-
-
-
-
-
-==========Fields remaining by table===============
 
 - Users => ssoUserId ✅✅
 - Account => isActiveAdvisor ✅
