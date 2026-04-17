@@ -9,19 +9,19 @@ Service that migrates data from legacy sources (WordPress, Certificate/Laravel M
 
 ## SSH tunnels (run before anything else)
 
-You must have SSH port forwards in place to connect DBs on remote servers so that `pre-migration`, or `migration` can reach staging databases. Keep each `ssh` session running in its own terminal.
+You must have SSH port forwards in place to connect DBs on remote servers so that `pre-migration`, or `migration` can reach staging/prod databases. Keep each `ssh` session running in its own terminal.
 
 
 
 ```bash
 # STAGING_TRIBE_DB — Tribe PostgreSQL → localhost:5456
-ssh -L 5456:localhost:5456 USERNAME@SERVER_IP
+ssh -L 5456:localhost:5456 USERNAME@TRIBE_SERVER_IP
 
-# STAGING_CERT_DB — Certificate / Laravel MySQL → localhost:3307
-ssh -L 3307:127.0.0.1:3306 USERNAME@SERVER_IP
+# STAGING_CERTIFICATE_DB — Certificate / Laravel MySQL → localhost:3307
+ssh -L 3307:127.0.0.1:3306 USERNAME@LARAVEL_SERVER_IP
 
 # STAGING_WP_DB — WordPress MySQL → localhost:3308
-ssh -L 3308:127.0.0.1:3306 USERNAME@SERVER_IP
+ssh -L 3308:127.0.0.1:3306 USERNAME@WP_SERVER_IP
 ```
 
 Notice that these local ports (`5456`, `3307`, `3308`) inside `.env` are connecting using localhost to remote servers with the help of tunneling.
@@ -75,7 +75,6 @@ Notice that these local ports (`5456`, `3307`, `3308`) inside `.env` are connect
    - Auth app PostgreSQL
    - Convex (`CONVEX_DEPLOYMENT`,`CONVEX_URL`, `CONVEX_SITE_URL`)
 
-   Use the [SSH tunnels](#ssh-tunnels-run-before-anything-else) above, or other network access as required by your environment.
 
 6. **Migration statistics** are appended to `migration.log` (info-level messages from the Winston logger).
 
@@ -88,4 +87,3 @@ Notice that these local ports (`5456`, `3307`, `3308`) inside `.env` are connect
 | `pnpm pre-migration` | Setup: mappings and template/program prep |
 | `pnpm migration` | Main migration (`src/db-migration.ts`) |
 | `npx convex dev` | Setup convex environment |
-| `pnpm dev` | Run `src/index.ts` in watch mode |
