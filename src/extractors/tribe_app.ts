@@ -129,7 +129,7 @@ export async function* extractTribeAppDataBatched(
   }
 }
 
-export async function countPgRows(table: string): Promise<number> {
+export async function countPgRowsFromTribeTable(table: string): Promise<number> {
   const pool = getPgPool();
   const result = await pool.query(`SELECT COUNT(*) as count FROM "${table}"`);
   return Number(result.rows[0].count);

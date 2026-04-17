@@ -46,7 +46,7 @@ import {
   parseOffsetCheckpoint,
   splitFullName,
 } from "./utils/utils";
-import { fetchInvitesInBatches, fetchTribeListInBatches } from "./extractors/tribe_app";
+import { countPgRowsFromTribeTable, fetchInvitesInBatches, fetchTribeListInBatches } from "./extractors/tribe_app";
 import {
   mapInviteFieldsToConvex,
   mapTribeRowsToTribesWithMemberships,
@@ -96,14 +96,14 @@ async function runMigration(): Promise<void> {
     ctx.affiliateActiveByWpUserId =
       await loadAffiliateAdvisorActiveByWpUserId();
     await migratePersonalAccounts();
-    // await migrateBusinessAccounts();
-    // await migrateAccountsFromCampaignRecipients();
-    // await migrateDefaultPersonalAccountsForStragglers();
-    // await migrateTrials();
-    // await migrateTribeInvites();
-    // await migrateTribeList();
-    // await migrateImpactRecords();
-    // await migrateFootPrints();
+    await migrateBusinessAccounts();
+    await migrateAccountsFromCampaignRecipients();
+    await migrateDefaultPersonalAccountsForStragglers();
+    await migrateTrials();
+    await migrateTribeInvites();
+    await migrateTribeList();
+    await migrateImpactRecords();
+    await migrateFootPrints();
     // ---------------- End of first batch ----------------
 
     console.log("✅ MIGRATION COMPLETED!!!");
@@ -164,6 +164,9 @@ async function migrateTribeInvites() {
   const TABLE = MIGRATION_TABLE.TRIBE.INVITES;
   let nextOffset = parseOffsetCheckpoint(getLastPrimaryKey(TABLE));
 
+  const sourceTribeInvitesCount = await countPgRowsFromTribeTable(TABLE);
+  let transferredTotal = 0;
+
   for await (const batch of fetchInvitesInBatches({
     limit: BATCH_SIZE,
     initialOffset: nextOffset,
@@ -176,6 +179,7 @@ async function migrateTribeInvites() {
       });
     }
 
+    transferredTotal += records.length;
     nextOffset += batch.length;
     // saveCheckpoint(TABLE, nextOffset);
 
@@ -185,12 +189,20 @@ async function migrateTribeInvites() {
     );
   }
 
+  logger.info("Tribe invites migration completed", {
+    sourceTribeInvitesCount,
+    transferredTribeInvitesCount: transferredTotal,
+  });
+
   console.log("✅ Tribe invites migration done");
 }
 
 async function migrateTribeList() {
   const TABLE = MIGRATION_TABLE.TRIBE.TRIBES;
   let nextOffset = parseOffsetCheckpoint(getLastPrimaryKey(TABLE));
+
+  const sourceTribeListCount = await countPgRowsFromTribeTable(TABLE);
+  let transferredTotal = 0;
 
   for await (const batch of fetchTribeListInBatches({
     limit: BATCH_SIZE,
@@ -226,6 +238,7 @@ async function migrateTribeList() {
         items: items as any,
       });
     }
+    transferredTotal += items.length;
 
     nextOffset += batch.length;
     saveCheckpoint(TABLE, nextOffset);
@@ -234,6 +247,10 @@ async function migrateTribeList() {
       `[Tribe list] Inserted ${items.length} tribes+memberships into Convex, ${skippedThisBatch} skipped (no leader: ${skipNoLeader}, bad createdAt: ${skipBadDate}, no member account: ${skipNoMember}).`,
     );
   }
+  logger.info("Tribe list migration completed", {
+    sourceTribeListCount,
+    transferredTribeListCount: transferredTotal,
+  });
 
   console.log("✅ Tribe list migration done");
 }
@@ -242,6 +259,9 @@ async function migrateTribeList() {
 async function migrateFootPrints() {
   const TABLE = MIGRATION_TABLE.WORDPRESS.WP_POSTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+
+  const sourceFootPrintsCount = await countMysqlRowsFromWpTable(TABLE);
+  let transferredTotal = 0;
 
   for await (const batch of listFootPrints(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
@@ -298,6 +318,7 @@ async function migrateFootPrints() {
         records,
       });
     }
+    transferredTotal += records.length;
 
     const skippedThisBatch = batch.length - records.length;
     console.log(
@@ -309,6 +330,10 @@ async function migrateFootPrints() {
       lastId = maxIdInBatch;
     }
   }
+  logger.info("Footprints migration completed", {
+    sourceFootPrintsCount,
+    transferredFootPrintsCount: transferredTotal,
+  });
 
   console.log("✅ Footprints (calculator responses) migration done");
 }
@@ -343,6 +368,8 @@ async function migrateTrials() {
   const TABLE = MIGRATION_TABLE.LARAVEL.IMPACT_TRIAL_DATES;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
   // Only works if user has activeAccountId set in DB
+  const souceImpactTrialDatesCount = await countMysqlRowsFromLaravelTable(TABLE);
+  let transferredTotal = 0;
 
   for await (const batch of listImpactTrialDates(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
@@ -401,6 +428,7 @@ async function migrateTrials() {
     if (records.length > 0) {
       await convex.mutation(api.migrations.bulkInsertTrials, { records });
     }
+    transferredTotal += records.length;
 
     const skippedThisBatch = batch.length - records.length;
     console.log(
@@ -413,6 +441,11 @@ async function migrateTrials() {
     }
   }
 
+  logger.info("Impact trial dates migration completed", {
+    souceImpactTrialDatesCount,
+    transferredImpactTrialDatesCount: transferredTotal,
+  });
+
   console.log("✅ Trials migration done");
 }
 
@@ -420,6 +453,9 @@ async function migrateImpactRecords() {
   console.log("🔄 Migrating impact records...");
   const TABLE = MIGRATION_TABLE.LARAVEL.CAMPAIGN_RECIPIENTS;
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
+
+  const sourceCampaignRecipientCount = await countMysqlRowsFromLaravelTable(TABLE);
+  let transferredTotal = 0;
 
   for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
     let maxIdInBatch: number = lastId;
@@ -438,6 +474,8 @@ async function migrateImpactRecords() {
       });
     }
 
+    transferredTotal += records.length;
+
     const insertedIntoConvex = records.length;
     const campaignRecipientsInBatch = enriched.length;
     const skippedThisBatch = campaignRecipientsInBatch - insertedIntoConvex;
@@ -452,6 +490,11 @@ async function migrateImpactRecords() {
     }
   }
 
+  logger.info("Impact records migration completed", {
+    sourceCampaignRecipientCount,
+    transferredImpactRecordsCount: transferredTotal,
+  });
+
   console.log("✅ Impact records migration done");
 }
 
@@ -460,9 +503,6 @@ async function migrateBusinessAccounts() {
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
   const sourceBusinessImpactCount = await countMysqlRowsFromLaravelTable(TABLE);
-  logger.info("Business account from impact pages migration started:", {
-    sourceBusinessImpactCount,
-  });
   let transferredTotal = 0;
 
   for await (const batch of listBusinessImpactPages(lastId, 50)) {
@@ -572,9 +612,6 @@ async function migratePersonalAccounts() {
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
   const sourcePersonalImpactCount = await countMysqlRowsFromLaravelTable(TABLE);
-  logger.info("Personal account from impact pages migration started:", {
-    sourcePersonalImpactCount,
-  });
   let transferredTotal = 0;
 
 
@@ -643,9 +680,6 @@ async function migrateAccountsFromCampaignRecipients() {
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
   const sourceCampaignRecipientCount = await countMysqlRowsFromLaravelTable(TABLE);
-  logger.info("Accounts from campaign recipients migration started:", {
-    sourceCampaignRecipientCount,
-  });
   let transferredTotal = 0;
 
   for await (const batch of listCampaignRecipients(lastId, BATCH_SIZE)) {
@@ -692,9 +726,6 @@ async function migrateDefaultPersonalAccountsForStragglers() {
     (userId) => !ctx.userToAccounts.get(userId)?.length,
   );
   const sourceStragglerCount = stragglerIds.length;
-  logger.info("Personal accounts for stragglers migration started:", {
-    sourceStragglerCount,
-  });
   let transferredTotal = 0;
 
   let inserted = 0;
@@ -737,10 +768,6 @@ async function migrateUsersFromWordpress() {
   let lastId = (getLastPrimaryKey(TABLE) as number) ?? 0;
 
   const sourceUserCount = await countMysqlRowsFromWpTable(TABLE);
-  logger.info("WordPress user migration started", {
-    sourceUserCount,
-  });
-
   let transferredTotal = 0;
 
   for await (const batch of listWpUsers(lastId, BATCH_SIZE)) {
