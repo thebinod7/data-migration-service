@@ -80,6 +80,8 @@ Notice that these local ports (`5456`, `3307`, `3308`) inside `.env` are connect
 
 7. **Migration errors** are written to `migration-error.log` (error-level messages).
 
+8. **Checkpoint resume** — Progress is saved in `.migration-checkpoint.json` (last primaryKey/offset per migrated table). Re-running `pnpm migration` reads that file and continues from those points instead of starting over.
+
 ## Scripts
 
 | Command | Description |
